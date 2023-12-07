@@ -19,6 +19,7 @@ gramms_list = ["10г","25г","50г","100г","1кг"]
 choose_type_list = ["Розсипний","Капсули","Концентрат","Пробний набір"]
 menu_list = ["📋 Мої замовлення", "📝 Зробити замовлення","📃 Асортимент", "🗣️ Звернутися за допомогою"]
 local_or_delivery_list = ["Самовивіз","Доставка"]
+contact_info = "Вул. 12 Квітня, будинок 3"
 
 def gen_regex(list):
     st = "^("
@@ -110,29 +111,27 @@ async def package_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def is_oreder_correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.text == "Так":
         #Проверить есть ли данные в базе
-        await update.message.reply_text(
-        "Щиро дякуємо за замовлення",
-        reply_markup=ReplyKeyboardMarkup([local_or_delivery_list])
+        await update.message.reply_text("Оберіть Самовивіз чи Доставка",
+            reply_markup=ReplyKeyboardMarkup([local_or_delivery_list],one_time_keyboard=True,input_field_placeholder="",resize_keyboard=True)
         )
         return LOCALORDELIVERY
     else:
         #await choose_type(update,context)
-        await update.message.reply_text("Меню",
-        reply_markup=start_reply_markup
-        )
-        return CHECK
+        return await choose_type(update,context) 
     
 async def local_or_delivery(update: Update,context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Оберіть Самовивіз чи Доставка"
-    )
     lod = update.message.text
     if(lod == local_or_delivery_list[0]):
-        local(update,context)
+        await local(update,context)
     else:
-        delivery(update,context)
+        await delivery(update,context)
 
 async def local(update: Update,context: ContextTypes.DEFAULT_TYPE):
-    return 0
+    await update.message.reply_text(
+        contact_info,
+        reply_markup=start_reply_markup
+    )
+    return CHECK
 
 async def delivery(update: Update,context: ContextTypes.DEFAULT_TYPE):
     return 0
@@ -152,7 +151,8 @@ app.add_handler(ConversationHandler(
             VARIETY: [MessageHandler(filters.Regex(gen_regex(variety_dict["UA"])), variety_select)],
             GRAMMS: [MessageHandler(filters.Regex(gen_regex(gramms_list)), gramms_select)],
             PACKAGE: [MessageHandler(filters.Regex("^[0-9]+$"),package_select)],
-            ORDER_CORRECT:[MessageHandler(filters.Regex(gen_regex(["Так","Ні"])),is_oreder_correct)]
+            ORDER_CORRECT:[MessageHandler(filters.Regex(gen_regex(["Так","Ні"])),is_oreder_correct)],
+            LOCALORDELIVERY:[MessageHandler(filters.Regex(gen_regex(local_or_delivery_list)),local_or_delivery)]
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
