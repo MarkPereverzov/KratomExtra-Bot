@@ -2,7 +2,7 @@ from telegram.ext import CommandHandler, CallbackQueryHandler, ContextTypes, App
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 import sqlite3
 import logging
-from config import TOKEN
+from bottoken import TOKEN
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -19,6 +19,7 @@ gramms_list = ["10 г", "25 г", "50 г", "100 г", "1 кг"]
 choose_type_list = ["Розсипний","Капсули","Концентрат","Пробний набір"]
 menu_list = ["📋 Мої замовлення", "📝 Зробити замовлення","📃 Асортимент", "🗣️ Звернутися за допомогою"]
 local_or_delivery_list = ["Самовивіз", "Доставка"]
+post_type_list= ["Почтомат","Відділення"]
 contact_info = "Ви можете забрати своє замовлення за адресою: Вул. 12 Квітня, будинок 3"
 
 def gen_regex(list):
@@ -33,7 +34,7 @@ def gen_regex(list):
     st += ")$"
     return st
 
-LOCALORDELIVERY,ORDER_CORRECT,TEA,HELP,MYORDER,CHECK,TYPE,ORDER,VARIETY, GRAMMS, COUNT,PACKAGE, ASSORTMENT = range(13)
+LOCALORDELIVERY,ORDER_CORRECT,TEA,HELP,MYORDER,CHECK,TYPE,ORDER,VARIETY, GRAMMS, COUNT,PACKAGE, ASSORTMENT,PERSONAL_INFO,PERSONAL_SURNAME,PERSONAL_PHONE,PERSONAL_CITY,PERSONAL_POST_TYPE,PERSONAL_POST_TYPE_CHOOSE,PERSONAL_INFO_CORRECT,PERSONAL_POST_NUMBER = range(21)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(update.effective_chat.id, '👋 Вас вітає Kratom Ukraine телеграм бот.\nТут ви можете оформити онлайн замовлення або дізнатися детальніше про наш чай 🌱',reply_markup=start_reply_markup)
@@ -116,7 +117,7 @@ async def package_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Сорт: "+context.user_data["variety"] + "\n"+
         "Вага: "+context.user_data["gramms"] + "\n"+
         "Кількість упаковок: "+context.user_data["package"] + "\n"+
-        "Всё указано верно ?",
+        "Все вказано вірно ?",
         reply_markup=reply_markup,
     )
     return ORDER_CORRECT
@@ -135,9 +136,9 @@ async def is_oreder_correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def local_or_delivery(update: Update,context: ContextTypes.DEFAULT_TYPE):
     lod = update.message.text
     if(lod == local_or_delivery_list[0]):
-        await local(update,context)
+        return await local(update,context)
     else:
-        await delivery(update,context)
+        return await personal_info_name(update,context)
 
 async def local(update: Update,context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -146,9 +147,65 @@ async def local(update: Update,context: ContextTypes.DEFAULT_TYPE):
     )
     return CHECK
 
-async def delivery(update: Update,context: ContextTypes.DEFAULT_TYPE):
-    return 0
+async def personal_info_name(update: Update,context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Вкажіть ваше ім'я", reply_markup=ReplyKeyboardRemove())
+    return PERSONAL_SURNAME
 
+async def personal_info_surname(update: Update,context: ContextTypes.DEFAULT_TYPE):
+    name = update.message.text
+    context.user_data["name"] = name
+    await update.message.reply_text("Вкажіть ваше прізвище")
+    return PERSONAL_PHONE
+
+async def personal_info_phone(update: Update,context: ContextTypes.DEFAULT_TYPE):
+    surname = update.message.text
+    context.user_data["surname"] = surname
+    await update.message.reply_text("Вкажіть ваш номер телефону")
+    return PERSONAL_CITY
+
+async def personal_info_city(update: Update,context: ContextTypes.DEFAULT_TYPE):
+    phone = update.message.text
+    context.user_data["phone"] = phone
+    await update.message.reply_text("Вкажіть ваше місто")
+    return PERSONAL_POST_TYPE
+
+async def personal_info_post_type(update: Update,context: ContextTypes.DEFAULT_TYPE):
+    reply_markup = ReplyKeyboardMarkup([post_type_list],resize_keyboard=True)
+    city = update.message.text
+    context.user_data["city"] = city
+    await update.message.reply_text("Оберіть Почтомат або Відділення",reply_markup=reply_markup)
+    return PERSONAL_POST_TYPE_CHOOSE
+    
+async def personal_info_post_type_choose(update: Update,context: ContextTypes.DEFAULT_TYPE):
+    post_type = update.message.text
+    context.user_data["post_type"] = post_type
+    await update.message.reply_text(f'Введіть номер {"почтомату" if post_type == post_type_list[0] else "відділення"} (Тільки число)',reply_markup=ReplyKeyboardRemove())
+    return PERSONAL_POST_NUMBER
+
+async def personal_info_post_number(update: Update,context: ContextTypes.DEFAULT_TYPE):
+    reply_markup = ReplyKeyboardMarkup([["Так","Ні"]],one_time_keyboard=True,resize_keyboard=True)
+    post_number = update.message.text
+    context.user_data["post_number"] = post_number
+    await update.message.reply_text(
+        "Ім'я: "+context.user_data["name"] + "\n"+
+        "Прізвище: "+context.user_data["surname"] + "\n"+
+        "Телефон: "+context.user_data["phone"] + "\n"+
+        "Місто: "+context.user_data["city"] + "\n"+
+        "Почтомат/відділення: "+context.user_data["post_type"] + "\n"+
+        f'Номер {"почтомату" if context.user_data["post_type"]  == post_type_list[0] else "відділення"}: '+ post_number + "\n"+
+        "Все вказано вірно ?",
+        reply_markup=reply_markup,
+    )
+    return PERSONAL_INFO_CORRECT
+
+async def is_personal_info_correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message.text == "Так":
+        #Проверить есть ли данные в базе
+        await update.message.reply_text("Щиро дякуємо за замовлення !",
+            reply_markup=start_reply_markup)
+        return CHECK
+    else:
+        return await personal_info_name(update,context) 
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(update.effective_chat.id, 'Замовлення призупинено')
@@ -165,7 +222,15 @@ app.add_handler(ConversationHandler(
             GRAMMS: [MessageHandler(filters.Regex(gen_regex(gramms_list)), gramms_select)],
             PACKAGE: [MessageHandler(filters.Regex("^[0-9]+$"),package_select)],
             ORDER_CORRECT:[MessageHandler(filters.Regex(gen_regex(["Так","Ні"])),is_oreder_correct)],
-            LOCALORDELIVERY:[MessageHandler(filters.Regex(gen_regex(local_or_delivery_list)),local_or_delivery)]
+            LOCALORDELIVERY:[MessageHandler(filters.Regex(gen_regex(local_or_delivery_list)),local_or_delivery)],
+            PERSONAL_INFO:[MessageHandler(filters.TEXT,personal_info_name)],
+            PERSONAL_SURNAME:[MessageHandler(filters.TEXT,personal_info_surname)],
+            PERSONAL_PHONE:[MessageHandler(filters.TEXT,personal_info_phone)],            
+            PERSONAL_CITY:[MessageHandler(filters.TEXT,personal_info_city)],
+            PERSONAL_POST_TYPE:[MessageHandler(filters.TEXT,personal_info_post_type)],
+            PERSONAL_POST_TYPE_CHOOSE:[MessageHandler(filters.Regex(gen_regex(post_type_list)),personal_info_post_type_choose)],
+            PERSONAL_POST_NUMBER:[MessageHandler(filters.Regex("^[0-9]+$"),personal_info_post_number)],
+            PERSONAL_INFO_CORRECT:[MessageHandler(filters.Regex(gen_regex(["Так","Ні"])),is_personal_info_correct)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
