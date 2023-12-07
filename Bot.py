@@ -14,11 +14,11 @@ logger = logging.getLogger(__name__)
 variety_dict = {
     "UA":["🌱 Maeng da Білий", "🌱 Maeng da Зелений", "🌱 Maeng da Червоний", "🌱 Тайський зелений","🌱 Борнео червоний", "🌱 Білий Слон","🌱 Шива", "🌱 White Honey", "🌱 Богиня Калі", "🌱 Golden Dragon"]
 }
-start_reply_markup = ReplyKeyboardMarkup([["📋 Мої замовлення", "📝 Зробити замовлення",], ["📃 Асортимент", "🗣️ Звернутися за допомогою",]],one_time_keyboard=True,input_field_placeholder="Сорт",resize_keyboard=True)
-gramms_list = ["10г","25г","50г","100г","1кг"]
-choose_type_list = ["Розсипний","Капсули","Концентрат","Пробний набір"]
-menu_list = ["📋 Мої замовлення", "📝 Зробити замовлення","📃 Асортимент", "🗣️ Звернутися за допомогою"]
-local_or_delivery_list = ["Самовивіз","Доставка"]
+start_reply_markup = ReplyKeyboardMarkup([["📋 Мої замовлення", "📝 Зробити замовлення",], ["Асортимент", "Звернутися за допомогою",]],one_time_keyboard=True,input_field_placeholder="Сорт",resize_keyboard=True)
+gramms_list = ["10 г", "25 г", "50 г", "100 г", "1 кг"]
+choose_type_list = ["Розсипний", "Капсули", "Концентрат", "📦 Пробний набір"]
+menu_list = ["📋 Мої замовлення", "📝 Зробити замовлення", "Асортимент", "Звернутися за допомогою"]
+local_or_delivery_list = ["Самовивіз", "Доставка"]
 
 def gen_regex(list):
     st = "^("
@@ -32,24 +32,37 @@ def gen_regex(list):
     st += ")$"
     return st
 
-LOCALORDELIVERY,ORDER_CORRECT,TEA,HELP,MYORDER,CHECK,TYPE,ORDER,VARIETY, GRAMMS, COUNT,PACKAGE = range(12)
+LOCALORDELIVERY,ORDER_CORRECT,TEA,HELP,MYORDER,CHECK,TYPE,ORDER,VARIETY, GRAMMS, COUNT,PACKAGE, ASSORTMENT = range(13)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(update.effective_chat.id, 'Вас вітає Kratom Ukraine телеграм бот 👋\nТут ви можете оформити онлайн замовлення або дізнатися детальніше про наш чай 🌱',reply_markup=start_reply_markup)
     return CHECK
 
+async def myorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Це список ваших замовлень:",
+        reply_markup=start_reply_markup,
+    )
+    return ConversationHandler.END
+
+async def assortment(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Ви маєте можливість ознайомитися з асортиментом нашого чаю 🌱",
+        reply_markup=start_reply_markup,
+    )
+
 async def check_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     option = update.message.text
     if option == menu_list[0]:
-        return ConversationHandler.END
+        return myorder(update,context)
     elif option == menu_list[1]:
-        return await choose_type(update,context) 
+        return await choose_type(update,context)
     elif option == menu_list[2]:
-        return ConversationHandler.END
+        return assortment(update,context) 
 
 async def choose_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = ReplyKeyboardMarkup([["Розсипний","Капсули"],["Концентрат","Пробний набір"]],one_time_keyboard=True,resize_keyboard=True)
-    await context.bot.send_message(update.effective_chat.id, 'Оберіть форму',reply_markup=reply_markup)
+    await context.bot.send_message(update.effective_chat.id, '📦 Оберіть зручну форму пакування',reply_markup=reply_markup)
     return TEA
 
 async def choose_tea(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -68,14 +81,14 @@ async def choose_tea(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return VARIETY
 
 async def variety_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    options_matrix = [["10г","25г"],["50г","100г"],["1кг"]]
+    options_matrix = [["10 г","25 г"],["50 г","100 г"],["1 кг"]]
     reply_markup = ReplyKeyboardMarkup(options_matrix,one_time_keyboard=True,resize_keyboard=True)
     user = update.message.from_user
     variety = update.message.text
     context.user_data["variety"] = variety
     logger.info("%s selected variety : %s", user.first_name, variety)
     await update.message.reply_text(
-        "Оберіть вагу упаковки",
+        "⚖︎ Оберіть вагу упаковки",
         reply_markup=reply_markup,
     )
     return GRAMMS
@@ -111,7 +124,7 @@ async def is_oreder_correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.text == "Так":
         #Проверить есть ли данные в базе
         await update.message.reply_text(
-        "Щиро дякуємо за замовлення",
+        "Щиро дякуємо за замовлення!",
         reply_markup=ReplyKeyboardMarkup([local_or_delivery_list])
         )
         return LOCALORDELIVERY
