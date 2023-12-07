@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 variety_dict = {
     "UA":["🌱 Maeng da Білий", "🌱 Maeng da Зелений", "🌱 Maeng da Червоний", "🌱 Тайський зелений","🌱 Борнео червоний", "🌱 Білий Слон","🌱 Шива", "🌱 White Honey", "🌱 Богиня Калі", "🌱 Golden Dragon"]
 }
+start_reply_markup = ReplyKeyboardMarkup([["📋 Мої замовлення", "📝 Зробити замовлення",], ["📃 Асортимент", "🗣️ Звернутися за допомогою",]],one_time_keyboard=True,input_field_placeholder="Сорт",resize_keyboard=True)
 gramms_list = ["10г","25г","50г","100г","1кг"]
 choose_type_list = ["Розсипний","Капсули","Концентрат","Пробний набір"]
 menu_list = ["📋 Мої замовлення", "📝 Зробити замовлення","📃 Асортимент", "🗣️ Звернутися за допомогою"]
@@ -33,19 +34,17 @@ def gen_regex(list):
 ORDER_CORRECT,TEA,HELP,MYORDER,CHECK,TYPE,ORDER,VARIETY, GRAMMS, COUNT,PACKAGE = range(11)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    reply_markup = ReplyKeyboardMarkup([["📋 Мої замовлення", "📝 Зробити замовлення",], ["📃 Асортимент", "🗣️ Звернутися за допомогою",]],one_time_keyboard=True,input_field_placeholder="Сорт",resize_keyboard=True)
-    await context.bot.send_message(update.effective_chat.id, 'Вас вітає Kratom Ukraine телеграм бот 👋\nТут ви можете оформити онлайн замовлення або дізнатися детальніше про наш чай 🌱',reply_markup=reply_markup)
-    return ORDER
+    await context.bot.send_message(update.effective_chat.id, 'Вас вітає Kratom Ukraine телеграм бот 👋\nТут ви можете оформити онлайн замовлення або дізнатися детальніше про наш чай 🌱',reply_markup=start_reply_markup)
+    return CHECK
 
 async def check_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     option = update.message.text
     if option == menu_list[0]:
-        return MYORDER
+        return ConversationHandler.END
     elif option == menu_list[1]:
         return await choose_type(update,context) 
     elif option == menu_list[2]:
-        return HELP
+        return ConversationHandler.END
 
 async def choose_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = ReplyKeyboardMarkup([["Розсипний","Капсули"],["Концентрат","Пробний набір"]],one_time_keyboard=True,resize_keyboard=True)
@@ -108,16 +107,18 @@ async def package_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ORDER_CORRECT
 
 async def is_oreder_correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    reply_markup = ReplyKeyboardMarkup([menu_list],one_time_keyboard=True,resize_keyboard=True)
     if update.message.text == "Так":
         await update.message.reply_text(
         "Щиро дякуємо за замовлення",
-        reply_markup=reply_markup
+        reply_markup=start_reply_markup
         )
         return ConversationHandler.END
     else:
-        await choose_type(update,context)
-        return TEA
+        #await choose_type(update,context)
+        await update.message.reply_text("Меню",
+        reply_markup=start_reply_markup
+        )
+        return CHECK
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(update.effective_chat.id, 'Замовлення призупинено')
@@ -126,7 +127,7 @@ app = ApplicationBuilder().token(TOKEN).build()
 #app.add_handler(CommandHandler(["start","hello"], start))
 #app.add_handler(CommandHandler(["order","make_order"], make_order))
 app.add_handler(ConversationHandler(
-        entry_points=[CommandHandler(["start","hello"], start)],
+        entry_points=[CommandHandler(["start","hello"], start),[MessageHandler(filters.Regex(gen_regex(menu_list)),check_menu)]],
         states={
             CHECK: [MessageHandler(filters.Regex(gen_regex(menu_list)),check_menu)],
             TEA: [MessageHandler(filters.TEXT,choose_tea)],
