@@ -42,8 +42,7 @@ async def check_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if option == menu_list[0]:
         return MYORDER
     elif option == menu_list[1]:
-        await choose_type(update,context)
-        return TEA
+        return await choose_type(update,context) 
     elif option == menu_list[2]:
         return HELP
 
@@ -128,24 +127,12 @@ app = ApplicationBuilder().token(TOKEN).build()
 app.add_handler(ConversationHandler(
         entry_points=[CommandHandler(["start","hello"], start)],
         states={
-            CHECK: [ConversationHandler(
-                entry_points=[MessageHandler(filters.Regex(gen_regex(menu_list)),check_menu)],
-                states={
-                    #MYORDER: [MessageHandler(filters.TEXT),]
-                    TEA: [ConversationHandler(
-                        entry_points=[MessageHandler(filters.TEXT,choose_tea)],
-                        states={
-                            #TEA: [MessageHandler(filters.Regex(gen_regex(choose_type_list)),choose_type)],
-                            VARIETY: [MessageHandler(filters.Regex(gen_regex(variety_dict["UA"])), variety_select)],
-                            GRAMMS: [MessageHandler(filters.Regex(gen_regex(gramms_list)), gramms_select)],
-                            PACKAGE: [MessageHandler(filters.Regex("^[0-9]+$"),package_select)],
-                            ORDER_CORRECT:[MessageHandler(filters.Regex(gen_regex(["Так","Ні"])),is_oreder_correct)]
-                        },
-                        fallbacks=[CommandHandler("cancel", cancel)],
-                        )],
-                },
-                fallbacks=[CommandHandler("cancel", cancel)],
-                )], 
+            CHECK: [MessageHandler(filters.Regex(gen_regex(menu_list)),check_menu)],
+            TEA: [MessageHandler(filters.TEXT,choose_tea)],
+            VARIETY: [MessageHandler(filters.Regex(gen_regex(variety_dict["UA"])), variety_select)],
+            GRAMMS: [MessageHandler(filters.Regex(gen_regex(gramms_list)), gramms_select)],
+            PACKAGE: [MessageHandler(filters.Regex("^[0-9]+$"),package_select)],
+            ORDER_CORRECT:[MessageHandler(filters.Regex(gen_regex(["Так","Ні"])),is_oreder_correct)]
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
