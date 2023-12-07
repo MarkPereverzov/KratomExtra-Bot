@@ -18,6 +18,7 @@ start_reply_markup = ReplyKeyboardMarkup([["📋 Мої замовлення", "
 gramms_list = ["10г","25г","50г","100г","1кг"]
 choose_type_list = ["Розсипний","Капсули","Концентрат","Пробний набір"]
 menu_list = ["📋 Мої замовлення", "📝 Зробити замовлення","📃 Асортимент", "🗣️ Звернутися за допомогою"]
+local_or_delivery_list = ["Самовивіз","Доставка"]
 
 def gen_regex(list):
     st = "^("
@@ -31,7 +32,7 @@ def gen_regex(list):
     st += ")$"
     return st
 
-ORDER_CORRECT,TEA,HELP,MYORDER,CHECK,TYPE,ORDER,VARIETY, GRAMMS, COUNT,PACKAGE = range(11)
+LOCALORDELIVERY,ORDER_CORRECT,TEA,HELP,MYORDER,CHECK,TYPE,ORDER,VARIETY, GRAMMS, COUNT,PACKAGE = range(12)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(update.effective_chat.id, 'Вас вітає Kratom Ukraine телеграм бот 👋\nТут ви можете оформити онлайн замовлення або дізнатися детальніше про наш чай 🌱',reply_markup=start_reply_markup)
@@ -108,17 +109,34 @@ async def package_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def is_oreder_correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.text == "Так":
+        #Проверить есть ли данные в базе
         await update.message.reply_text(
         "Щиро дякуємо за замовлення",
-        reply_markup=start_reply_markup
+        reply_markup=ReplyKeyboardMarkup([local_or_delivery_list])
         )
-        return ConversationHandler.END
+        return LOCALORDELIVERY
     else:
         #await choose_type(update,context)
         await update.message.reply_text("Меню",
         reply_markup=start_reply_markup
         )
         return CHECK
+    
+async def local_or_delivery(update: Update,context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Оберіть Самовивіз чи Доставка"
+    )
+    lod = update.message.text
+    if(lod == local_or_delivery_list[0]):
+        local(update,context)
+    else:
+        delivery(update,context)
+
+async def local(update: Update,context: ContextTypes.DEFAULT_TYPE):
+    return 0
+
+async def delivery(update: Update,context: ContextTypes.DEFAULT_TYPE):
+    return 0
+
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(update.effective_chat.id, 'Замовлення призупинено')
