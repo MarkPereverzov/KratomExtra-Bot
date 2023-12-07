@@ -12,11 +12,11 @@ logging.getLogger("httpx").setLevel(logging.ERROR)
 logger = logging.getLogger(__name__)
 
 variety_dict = {
-    "UA":["Maeng da Білий", "Maeng da Зелений", "Maeng da Червоний", "Тайський зелений", "Борнео червоний", "Білий Слон", "Шива", "White Honey", "Богиня Калі", "Golden Dragon"]
+    "UA":["🌱 Maeng da Білий", "🌱 Maeng da Зелений", "🌱 Maeng da Червоний", "🌱 Тайський зелений","🌱 Борнео червоний", "🌱 Білий Слон","🌱 Шива", "🌱 White Honey", "🌱 Богиня Калі", "🌱 Golden Dragon"]
 }
 gramms_list = ["10г","25г","50г","100г","1кг"]
 choose_type_list = ["Розсипний","Капсули","Концентрат","Пробний набір"]
-menu_list = ["Мої замовлення","Зробити замовлення","Звернутись за допомогою"]
+menu_list = ["📋 Мої замовлення", "📝 Зробити замовлення","📃 Асортимент", "🗣️ Звернутися за допомогою"]
 
 def gen_regex(list):
     st = "^("
@@ -116,7 +116,7 @@ async def is_oreder_correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return ConversationHandler.END
     else:
-        choose_type(update,context)
+        await choose_type(update,context)
         return TEA
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
