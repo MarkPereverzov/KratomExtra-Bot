@@ -36,7 +36,7 @@ def gen_regex(list):
 LOCALORDELIVERY,ORDER_CORRECT,TEA,HELP,MYORDER,CHECK,TYPE,ORDER,VARIETY, GRAMMS, COUNT,PACKAGE, ASSORTMENT = range(13)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(update.effective_chat.id, 'Вас вітає Kratom Ukraine телеграм бот 👋\nТут ви можете оформити онлайн замовлення або дізнатися детальніше про наш чай 🌱',reply_markup=start_reply_markup)
+    await context.bot.send_message(update.effective_chat.id, '👋 Вас вітає Kratom Ukraine телеграм бот.\nТут ви можете оформити онлайн замовлення або дізнатися детальніше про наш чай 🌱',reply_markup=start_reply_markup)
     return CHECK
 
 async def myorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -114,7 +114,7 @@ async def package_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Форма: "+context.user_data["type"] + "\n"+
         "Сорт: "+context.user_data["variety"] + "\n"+
-        "Кількість грамм в пакеті: "+context.user_data["gramms"] + "\n"+
+        "Вага: "+context.user_data["gramms"] + "\n"+
         "Кількість упаковок: "+context.user_data["package"] + "\n"+
         "Всё указано верно ?",
         reply_markup=reply_markup,
@@ -124,7 +124,7 @@ async def package_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def is_oreder_correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.text == "Так":
         #Проверить есть ли данные в базе
-        await update.message.reply_text("Оберіть Самовивіз чи Доставка",
+        await update.message.reply_text("📦 Оберіть зручний для вас вид доставки\n\n🚶 Самовивіз\nВи маєте можливість особисто забрати замовлення у зручний для Вас час у проміжок часу (11:00 - 18:00).\n\n🚚 Доставка поштою\nВаше замовлення буде надіслано протягом робочого дня за тарифами Нової Пошти.",
             reply_markup=ReplyKeyboardMarkup([local_or_delivery_list],one_time_keyboard=True,input_field_placeholder="",resize_keyboard=True)
         )
         return LOCALORDELIVERY
