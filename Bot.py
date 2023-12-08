@@ -12,13 +12,13 @@ logging.getLogger("httpx").setLevel(logging.ERROR)
 logger = logging.getLogger(__name__)
 
 variety_dict = {
-    "UA":["🌱 Maeng da Білий", "🌱 Maeng da Зелений", "🌱 Maeng da Червоний", "🌱 Тайський зелений","🌱 Борнео червоний", "🌱 Білий Слон","🌱 Шива", "🌱 White Honey", "🌱 Богиня Калі", "🌱 Golden Dragon"]
+    "UA":["Maeng da Білий", "Maeng da Зелений", "Maeng da Червоний", "Тайський зелений","Борнео червоний", "Білий Слон","Шива", "White Honey", "Богиня Калі", "Golden Dragon"]
 }
-start_reply_markup = ReplyKeyboardMarkup([["📋 Мої замовлення", "📝 Зробити замовлення",], ["📃 Асортимент", "🗣️ Звернутися за допомогою",]],one_time_keyboard=True,input_field_placeholder="Сорт",resize_keyboard=True)
+start_reply_markup = ReplyKeyboardMarkup([["🛍️ Корзина", "📜 Мої замовлення",], ["📘 Каталог", "☎️ Контакти",]],one_time_keyboard=True,input_field_placeholder="Сорт",resize_keyboard=True)
 gramms_list = ["10 г", "25 г", "50 г", "100 г", "1 кг"]
 choose_type_list = ["Розсипний","Капсули","Концентрат","Пробний набір"]
-menu_list = ["📋 Мої замовлення", "📝 Зробити замовлення","📃 Асортимент", "🗣️ Звернутися за допомогою"]
-local_or_delivery_list = ["Самовивіз", "Доставка"]
+menu_list = ["🛍️ Корзина", "📜 Мої замовлення","📘 Каталог", "☎️ Контакти"]
+local_or_delivery_list = ["🚶 Самовивіз", "🚚 Доставка"]
 post_type_list= ["Почтомат","Відділення"]
 contact_info = "Ви можете забрати своє замовлення за адресою: Вул. 12 Квітня, будинок 3"
 
@@ -37,7 +37,7 @@ def gen_regex(list):
 LOCALORDELIVERY,ORDER_CORRECT,TEA,HELP,MYORDER,CHECK,TYPE,ORDER,VARIETY, GRAMMS, COUNT,PACKAGE, ASSORTMENT,PERSONAL_INFO,PERSONAL_SURNAME,PERSONAL_PHONE,PERSONAL_CITY,PERSONAL_POST_TYPE,PERSONAL_POST_TYPE_CHOOSE,PERSONAL_INFO_CORRECT,PERSONAL_POST_NUMBER = range(21)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(update.effective_chat.id, '👋 Вас вітає Kratom Ukraine телеграм бот.\nТут ви можете оформити онлайн замовлення або дізнатися детальніше про наш чай 🌱',reply_markup=start_reply_markup)
+    await context.bot.send_message(update.effective_chat.id, 'Вас вітає Kratom Ukraine телеграм бот.👋\nТут ви можете оформити онлайн замовлення або дізнатися детальніше про наш чай 🌱',reply_markup=start_reply_markup)
     return CHECK
 
 async def myorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -72,11 +72,11 @@ async def choose_tea(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["type"] = type
     logger.info("%s TYPE", type)
     options_matrix = [
-        ["🌱 Maeng da Білий", "🌱 Maeng da Зелений"],
-        ["🌱 Maeng da Червоний", "🌱 Тайський зелений"],
-        ["🌱 Борнео червоний", "🌱 Білий Слон"],
-        ["🌱 Шива", "🌱 White Honey"],
-        ["🌱 Богиня Калі", "🌱 Golden Dragon"],
+        ["Maeng da Білий", "Maeng da Зелений"],
+        ["Maeng da Червоний", "Тайський зелений"],
+        ["Борнео червоний", "Білий Слон"],
+        ["Шива", "White Honey"],
+        ["Богиня Калі", "Golden Dragon"],
     ]
     reply_markup = ReplyKeyboardMarkup(options_matrix,one_time_keyboard=True,input_field_placeholder="Сорт",resize_keyboard=True)
     await context.bot.send_message(chat_id=update.effective_chat.id,text='Оберіть сорт',reply_markup=reply_markup)
