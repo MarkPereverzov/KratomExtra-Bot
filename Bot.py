@@ -3,6 +3,8 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ReplyKe
 import sqlite3
 import logging
 from bottoken import TOKEN
+from classes import User
+from dbwrapper import Dbwrapper
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -21,6 +23,8 @@ menu_list = ["📋 Мої замовлення", "📝 Зробити замов
 local_or_delivery_list = ["Самовивіз", "Доставка"]
 post_type_list= ["Почтомат","Відділення"]
 contact_info = "Ви можете забрати своє замовлення за адресою: Вул. 12 Квітня, будинок 3"
+
+db = Dbwrapper.Dbwrapper("D:\\KratomUkraine-Bot\\data.db")
 
 def gen_regex(list):
     st = "^("
@@ -185,21 +189,18 @@ async def personal_info_post_type_choose(update: Update,context: ContextTypes.DE
 async def personal_info_post_number(update: Update,context: ContextTypes.DEFAULT_TYPE):
     reply_markup = ReplyKeyboardMarkup([["Так","Ні"]],one_time_keyboard=True,resize_keyboard=True)
     post_number = update.message.text
+    userid = update.message.from_user.id
     context.user_data["post_number"] = post_number
+    user = User.User(userid,context.user_data["name"],context.user_data["surname"],context.user_data["phone"],context.user_data["city"],context.user_data["post_type"],post_number)
     await update.message.reply_text(
-        "Ім'я: "+context.user_data["name"] + "\n"+
-        "Прізвище: "+context.user_data["surname"] + "\n"+
-        "Телефон: "+context.user_data["phone"] + "\n"+
-        "Місто: "+context.user_data["city"] + "\n"+
-        "Почтомат/відділення: "+context.user_data["post_type"] + "\n"+
-        f'Номер {"почтомату" if context.user_data["post_type"]  == post_type_list[0] else "відділення"}: '+ post_number + "\n"+
-        "Все вказано вірно ?",
+        f"userid: {userid}\n{user}\nВсе вказано вірно ?",
         reply_markup=reply_markup,
     )
     return PERSONAL_INFO_CORRECT
 
 async def is_personal_info_correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.text == "Так":
+        print(db.getUser({"ID":"1"}))
         #Проверить есть ли данные в базе
         await update.message.reply_text("Щиро дякуємо за замовлення !",
             reply_markup=start_reply_markup)
