@@ -38,7 +38,7 @@ def gen_regex(list):
     st += ")$"
     return st
 
-LOCALORDELIVERY,ORDER_CORRECT,TEA,HELP,MYORDER,CHECK,TYPE,ORDER,VARIETY, GRAMMS, COUNT,PACKAGE, ASSORTMENT,PERSONAL_INFO,PERSONAL_SURNAME,PERSONAL_PHONE,PERSONAL_CITY,PERSONAL_POST_TYPE,PERSONAL_POST_TYPE_CHOOSE,PERSONAL_INFO_CORRECT,PERSONAL_POST_NUMBER = range(21)
+LOCALORDELIVERY,ORDER_CORRECT,TEA,HELP,MYORDER,CHECK,TYPE,ORDER,VARIETY, GRAMMS, COUNT,PACKAGE, ASSORTMENT,PERSONAL_INFO,PERSONAL_SURNAME,PERSONAL_PHONE,PERSONAL_CITY,PERSONAL_POST_TYPE,PERSONAL_POST_TYPE_CHOOSE,PERSONAL_INFO_CORRECT,PERSONAL_POST_NUMBER,ASK_UPDATE_PERSONAL = range(22)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(update.effective_chat.id, '👋 Вас вітає Kratom Ukraine телеграм бот.\nТут ви можете оформити онлайн замовлення або дізнатися детальніше про наш чай 🌱',reply_markup=start_reply_markup)
@@ -138,11 +138,27 @@ async def is_oreder_correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await choose_type(update,context) 
     
 async def local_or_delivery(update: Update,context: ContextTypes.DEFAULT_TYPE):
+    reply_markup = ReplyKeyboardMarkup([["Так","Ні"]],one_time_keyboard=True,resize_keyboard=True)
     lod = update.message.text
     if(lod == local_or_delivery_list[0]):
         return await local(update,context)
     else:
-        return await personal_info_name(update,context)
+        userid = update.message.from_user.id
+        user = db.getUser({"UserId":userid})
+        if user != None:
+            await update.message.reply_text(f"{user}")
+            await update.message.reply_text("Інформація актуальна ?", reply_markup=reply_markup)
+            return ASK_UPDATE_PERSONAL
+        else:
+            return await personal_info_name(update,context)
+
+async def ask_update_personal(update: Update,context: ContextTypes.DEFAULT_TYPE):
+    if update.message.text == "Так":
+        await update.message.reply_text("Щиро дякуємо за замовлення !",
+            reply_markup=start_reply_markup)
+        return CHECK
+    else:
+        return await personal_info_name(update,context) 
 
 async def local(update: Update,context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -200,8 +216,13 @@ async def personal_info_post_number(update: Update,context: ContextTypes.DEFAULT
 
 async def is_personal_info_correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.text == "Так":
-        print(db.getUser({"ID":"1"}))
-        #Проверить есть ли данные в базе
+        userid = update.message.from_user.id
+        user = User.User(userid,context.user_data["name"],context.user_data["surname"],context.user_data["phone"],context.user_data["city"],context.user_data["post_type"],context.user_data["post_number"])
+        if db.getUser({"UserId":userid}) == None:
+            db.saveUser(user)
+        else: 
+            db.updateUser(user)
+        print(db.getAllUsers())
         await update.message.reply_text("Щиро дякуємо за замовлення !",
             reply_markup=start_reply_markup)
         return CHECK
@@ -232,6 +253,7 @@ app.add_handler(ConversationHandler(
             PERSONAL_POST_TYPE_CHOOSE:[MessageHandler(filters.Regex(gen_regex(post_type_list)),personal_info_post_type_choose)],
             PERSONAL_POST_NUMBER:[MessageHandler(filters.Regex("^[0-9]+$"),personal_info_post_number)],
             PERSONAL_INFO_CORRECT:[MessageHandler(filters.Regex(gen_regex(["Так","Ні"])),is_personal_info_correct)],
+            ASK_UPDATE_PERSONAL:[MessageHandler(filters.Regex(gen_regex(["Так","Ні"])),ask_update_personal)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
