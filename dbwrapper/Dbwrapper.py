@@ -1,5 +1,8 @@
 import sqlite3
 from classes import User
+from classes import Orders
+from classes import OrderElements
+
 
 class Dbwrapper:
     def __init__(self,connectionstr):
@@ -48,3 +51,13 @@ class Dbwrapper:
         con.commit()
         con.close()
 
+    def getAllOrders(self) -> [Orders.Orders]:
+        con = self.connect()
+        cur = con.cursor()
+        cur.execute("SELECT * FROM Orders")
+        ordersstr = cur.fetchall()
+        orders = []
+        for orderstr in ordersstr:
+            orders.append(Orders.Orders(orderstr[1]))
+        con.close()
+        return users
