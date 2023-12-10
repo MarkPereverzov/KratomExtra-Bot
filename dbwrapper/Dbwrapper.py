@@ -34,6 +34,25 @@ class Dbwrapper:
         user = None if tmp == None else User.User(tmp[0],tmp[2],tmp[3],tmp[4],tmp[5],tmp[6],tmp[7])
         return user
     
+    def getUserWithOrders(self,dict) -> User.User:
+        con = self.connect()
+        cur = con.cursor()
+        exstr = f"SELECT * FROM Users JOIN Orders ON Users.ID = Orders.UserId JOIN OrderElements ON Orders.ID = OrderElemnts.OrderID"
+        exstr += " WHERE "
+        for key in dict:
+            exstr += f"{key}={dict[key]} "
+        cur.execute(exstr)
+        tmp = cur.fetchone()
+        con.close()
+        if tmp == None:
+            user = None
+        else:
+            user = User.User(tmp[0],tmp[2],tmp[3],tmp[4],tmp[5],tmp[6],tmp[7])
+            order = Orders.Orders(tmp[9],tmp[10])
+            order.orderelements = OrderElements.OrderElements(tmp[12],tmp[13].tmp[14],tmp[15])
+            user.orders.append(order)
+        return user
+
     def saveUser(self,user):
         con = self.connect()
         cur = con.cursor()

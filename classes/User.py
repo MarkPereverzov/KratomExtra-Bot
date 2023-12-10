@@ -7,6 +7,7 @@ class User:
         self.city = city
         self.post_type = post_type
         self.post_number = post_number
+        self.orders = []
         
     def __repr__(self) -> str:
         return f"Ім'я: {self.name}\nПрізвище: {self.surname}\n"+f"Телефон: {self.phone}\nМісто: {self.city}\n"+f"Почтомат/відділення: {self.post_type}\n"+f"Номер почтомату/відділення: {self.post_number}\n"
