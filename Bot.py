@@ -4,7 +4,10 @@ import sqlite3
 import logging
 from bottoken import TOKEN
 from classes import User
+from classes.Orders import Orders
+from classes.OrderElements import OrderElements
 from dbwrapper import Dbwrapper
+import time
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -38,10 +41,11 @@ def gen_regex(list):
     st += ")$"
     return st
 
-LOCALORDELIVERY,ORDER_CORRECT,TEA,HELP,MYORDER,CHECK,TYPE,ORDER,VARIETY, GRAMMS, COUNT,PACKAGE, ASSORTMENT,PERSONAL_INFO,PERSONAL_SURNAME,PERSONAL_PHONE,PERSONAL_CITY,PERSONAL_POST_TYPE,PERSONAL_POST_TYPE_CHOOSE,PERSONAL_INFO_CORRECT,PERSONAL_POST_NUMBER,ASK_UPDATE_PERSONAL = range(22)
+LOCALORDELIVERY,ORDER_CORRECT,TEA,HELP,MYORDER,CHECK,TYPE,ORDER,VARIETY, GRAMMS, COUNT,PACKAGE, ASSORTMENT,PERSONAL_INFO,PERSONAL_SURNAME,PERSONAL_PHONE,PERSONAL_CITY,PERSONAL_POST_TYPE,PERSONAL_POST_TYPE_CHOOSE,PERSONAL_INFO_CORRECT,PERSONAL_POST_NUMBER,ASK_UPDATE_PERSONAL,ONE_MORE = range(23)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(update.effective_chat.id, 'Вас вітає Kratom Ukraine телеграм бот.👋\nТут ви можете оформити онлайн замовлення або дізнатися детальніше про наш чай 🌱',reply_markup=start_reply_markup)
+    context.user_data["ordersid"] = 0
     return CHECK
 
 async def myorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -127,15 +131,26 @@ async def package_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ORDER_CORRECT
 
 async def is_oreder_correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    reply_markup = ReplyKeyboardMarkup([["Так","Ні"]],one_time_keyboard=True,resize_keyboard=True)
     if update.message.text == "Так":
-        #Проверить есть ли данные в базе
+        if context.user_data["ordersid"] == 0:
+            times = int(time.time())
+            db.saveOrders(Orders(times,db.getUser({"UserID":update.message.from_user.id}).id))
+            context.user_data["ordersid"] = db.getOrders({"OrderTime":times}).id
+        db.saveOrderElements(OrderElements(context.user_data["variety"],context.user_data["gramms"],context.user_data["package"],context.user_data["ordersid"]))
+        await update.message.reply_text("Бажаєте додати ще один сорт ?", reply_markup=reply_markup)
+        return ONE_MORE
+    else:
+        return await choose_type(update,context) 
+    
+async def one_more_ask(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message.text == "Так":
+        return await choose_type(update,context)
+    else:
         await update.message.reply_text("📦 Оберіть зручний для вас вид доставки\n\n🚶 Самовивіз\nВи маєте можливість особисто забрати замовлення у зручний для Вас час у проміжок часу (11:00 - 18:00).\n\n🚚 Доставка поштою\nВаше замовлення буде надіслано протягом робочого дня за тарифами Нової Пошти.",
             reply_markup=ReplyKeyboardMarkup([local_or_delivery_list],one_time_keyboard=True,input_field_placeholder="",resize_keyboard=True)
         )
         return LOCALORDELIVERY
-    else:
-        #await choose_type(update,context)
-        return await choose_type(update,context) 
     
 async def local_or_delivery(update: Update,context: ContextTypes.DEFAULT_TYPE):
     reply_markup = ReplyKeyboardMarkup([["Так","Ні"]],one_time_keyboard=True,resize_keyboard=True)
@@ -223,6 +238,7 @@ async def is_personal_info_correct(update: Update, context: ContextTypes.DEFAULT
         else: 
             db.updateUser(user)
         print(db.getAllUsers())
+        context.user_data["ordersid"] = 0
         await update.message.reply_text("Щиро дякуємо за замовлення !",
             reply_markup=start_reply_markup)
         return CHECK
@@ -230,6 +246,7 @@ async def is_personal_info_correct(update: Update, context: ContextTypes.DEFAULT
         return await personal_info_name(update,context) 
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["ordersid"] = 0
     await context.bot.send_message(update.effective_chat.id, 'Замовлення призупинено')
 
 app = ApplicationBuilder().token(TOKEN).build()
@@ -254,6 +271,7 @@ app.add_handler(ConversationHandler(
             PERSONAL_POST_NUMBER:[MessageHandler(filters.Regex("^[0-9]+$"),personal_info_post_number)],
             PERSONAL_INFO_CORRECT:[MessageHandler(filters.Regex(gen_regex(["Так","Ні"])),is_personal_info_correct)],
             ASK_UPDATE_PERSONAL:[MessageHandler(filters.Regex(gen_regex(["Так","Ні"])),ask_update_personal)],
+            ONE_MORE:[MessageHandler(filters.Regex(gen_regex(["Так","Ні"])),one_more_ask)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )

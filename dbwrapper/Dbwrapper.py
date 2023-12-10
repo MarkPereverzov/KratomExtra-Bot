@@ -18,7 +18,9 @@ class Dbwrapper:
         usersstr = cur.fetchall()
         users = []
         for userstr in usersstr:
-            users.append(User.User(userstr[0],userstr[2],userstr[3],userstr[4],userstr[5],userstr[6],userstr[7]))
+            user = User.User(userstr[1],userstr[2],userstr[3],userstr[4],userstr[5],userstr[6],userstr[7])
+            user.id = userstr[0]
+            users.append(user)
         con.close()
         return users
     
@@ -31,9 +33,13 @@ class Dbwrapper:
         cur.execute(exstr)
         tmp = cur.fetchone()
         con.close()
-        user = None if tmp == None else User.User(tmp[0],tmp[2],tmp[3],tmp[4],tmp[5],tmp[6],tmp[7])
+        if tmp == None:
+            user = None
+        else: 
+            user = User.User(tmp[1],tmp[2],tmp[3],tmp[4],tmp[5],tmp[6],tmp[7])
+            user.id = tmp[0]
         return user
-    
+    #PEREDELAT
     def getUserWithOrders(self,dict) -> User.User:
         con = self.connect()
         cur = con.cursor()
@@ -47,9 +53,12 @@ class Dbwrapper:
         if tmp == None:
             user = None
         else:
-            user = User.User(tmp[0],tmp[2],tmp[3],tmp[4],tmp[5],tmp[6],tmp[7])
+            user = User.User(tmp[1],tmp[2],tmp[3],tmp[4],tmp[5],tmp[6],tmp[7])
+            user.id = tmp[0]
             order = Orders.Orders(tmp[9],tmp[10])
+            order.id = tmp[8]
             order.orderelements = OrderElements.OrderElements(tmp[12],tmp[13].tmp[14],tmp[15])
+            order.orderelements.id = tmp[11]
             user.orders.append(order)
         return user
 
@@ -69,7 +78,7 @@ class Dbwrapper:
         cur.execute(exstr)
         con.commit()
         con.close()
-
+    #PEREDELAT
     def getAllOrders(self) -> [Orders.Orders]:
         con = self.connect()
         cur = con.cursor()
@@ -78,7 +87,10 @@ class Dbwrapper:
         orders = []
         for orderstr in ordersstr:
             tmp = Orders.Orders(orderstr[1],orderstr[2])
-            tmp.orderelements.append(OrderElements.OrderElements(orderstr[4],orderstr[5],orderstr[6],orderstr[7]))
+            tmp.id = orderstr[0]
+            oes = OrderElements.OrderElements(orderstr[4],orderstr[5],orderstr[6],orderstr[7])
+            oes.id = orderstr[3]
+            tmp.orderelements.append(oes)
             orders.append(tmp)
         con.close()
         return orders
@@ -87,18 +99,22 @@ class Dbwrapper:
         con = self.connect()
         cur = con.cursor()
         exstr = f"SELECT * FROM Orders "
-        exstr += "JOIN OrderElements ON Orders.ID = OrderElemnts.OrderID"
+        exstr += "LEFT JOIN OrderElements ON Orders.ID = OrderElements.OrderID "
         exstr += "WHERE "
         for key in dict:
             exstr += f"{key}={dict[key]} "
         cur.execute(exstr)
+        print(exstr)
         tmp = cur.fetchone()
         con.close()
         if tmp == None:
             order = None
         else:
             order = Orders.Orders(tmp[1],tmp[2])
-            order.orderelements.append(OrderElements.OrderElements(tmp[4],tmp[5],tmp[6],tmp[7]))
+            order.id = tmp[0]
+            oes = OrderElements.OrderElements(tmp[4],tmp[5],tmp[6],tmp[7])
+            oes.id = tmp[3]
+            order.orderelements.append(oes)
         return order
     
     def saveOrders(self,orders):
@@ -113,7 +129,7 @@ class Dbwrapper:
     def saveOrderElements(self,orderelements):
         con = self.connect()
         cur = con.cursor()
-        exstr = f"INSERT INTO OrderElements (Tea,Weight,Amount,OrderID) VALUES ('{orderelements.tea}',{orderelements.weight},{orderelements.amount},{orderelements.orderid});"
+        exstr = f"INSERT INTO OrderElements (Tea,Weight,Amount,OrderID) VALUES ('{orderelements.tea}','{orderelements.weight}',{orderelements.amount},{orderelements.orderid});"
         print(exstr)
         cur.execute(exstr)
         con.commit()

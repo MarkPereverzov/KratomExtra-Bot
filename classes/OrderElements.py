@@ -4,5 +4,6 @@ class OrderElements:
         self.weight = weight
         self.amount = amount
         self.orderid = orderid
+        self.id = 0
     def __repr__(self) -> str:
         return f"**Сорт:** {self.tea}\n**Вага упаковки:** {self.weight}\n**Кількість упаковок:** {self.amount}\n**Номер замовлення:** {self.orderid}"
