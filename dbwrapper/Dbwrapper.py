@@ -54,10 +54,75 @@ class Dbwrapper:
     def getAllOrders(self) -> [Orders.Orders]:
         con = self.connect()
         cur = con.cursor()
-        cur.execute("SELECT * FROM Orders")
+        cur.execute("SELECT * FROM Orders JOIN OrderElements ON Orders.ID = OrderElemnts.OrderID")
         ordersstr = cur.fetchall()
         orders = []
         for orderstr in ordersstr:
-            orders.append(Orders.Orders(orderstr[1]))
+            tmp = Orders.Orders(orderstr[1],orderstr[2])
+            tmp.orderelements.append(OrderElements.OrderElements(orderstr[4],orderstr[5],orderstr[6],orderstr[7]))
+            orders.append(tmp)
         con.close()
-        return users
+        return orders
+    
+    def getOrders(self,dict) -> Orders.Orders:
+        con = self.connect()
+        cur = con.cursor()
+        exstr = f"SELECT * FROM Orders "
+        exstr += "JOIN OrderElements ON Orders.ID = OrderElemnts.OrderID"
+        exstr += "WHERE "
+        for key in dict:
+            exstr += f"{key}={dict[key]} "
+        cur.execute(exstr)
+        tmp = cur.fetchone()
+        con.close()
+        if tmp == None:
+            order = None
+        else:
+            order = Orders.Orders(tmp[1],tmp[2])
+            order.orderelements.append(OrderElements.OrderElements(tmp[4],tmp[5],tmp[6],tmp[7]))
+        return order
+    
+    def saveOrders(self,orders):
+        con = self.connect()
+        cur = con.cursor()
+        exstr = f"INSERT INTO Orders (OrderTime,UserId) VALUES ({orders.time},{orders.userid});"
+        print(exstr)
+        cur.execute(exstr)
+        con.commit()
+        con.close()
+    
+    def saveOrderElements(self,orderelements):
+        con = self.connect()
+        cur = con.cursor()
+        exstr = f"INSERT INTO OrderElements (Tea,Weight,Amount,OrderID) VALUES ('{orderelements.tea}',{orderelements.weight},{orderelements.amount},{orderelements.orderid});"
+        print(exstr)
+        cur.execute(exstr)
+        con.commit()
+        con.close()
+
+    def updateOrderElements(self,orderelements):
+        con = self.connect()
+        cur = con.cursor()
+        exstr = f"UPDATE OrderElements SET Tea='{orderelements.tea}',Weight={orderelements.weight},Amount={orderelements.amount},OrderID={orderelements.orderid});"
+        print(exstr)
+        cur.execute(exstr)
+        con.commit()
+        con.close()
+    
+    def deleteOrderElements(self,id):
+        con = self.connect()
+        cur = con.cursor()
+        exstr = f"DELETE FROM OrderElements WHERE ID={id});"
+        print(exstr)
+        cur.execute(exstr)
+        con.commit()
+        con.close()
+
+    def deleteOrders(self,id):
+        con = self.connect()
+        cur = con.cursor()
+        exstr = f"DELETE FROM Orders WHERE ID={id});"
+        print(exstr)
+        cur.execute(exstr)
+        con.commit()
+        con.close()
