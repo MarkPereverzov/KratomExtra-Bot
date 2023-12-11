@@ -47,6 +47,11 @@ LOCALORDELIVERY,ORDER_CORRECT,TEA,HELP,MYORDER,CHECK,TYPE,ORDER,VARIETY, GRAMMS,
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(update.effective_chat.id, 'Вас вітає Kratom Ukraine телеграм бот.👋\nТут ви можете оформити онлайн замовлення або дізнатися детальніше про наш чай 🌱',reply_markup=start_reply_markup)
     context.user_data["ordersid"] = 0
+    with Session(engine) as session:
+        uid = update.message.from_user.id
+        if session.query(User.id).where(User.userid.in_([str(uid)])).first() == None:
+            session.add(User(userid=str(uid)))
+            session.commit()
     return CHECK
 
 async def myorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -136,7 +141,7 @@ async def is_oreder_correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.text == "Так":
         with Session(engine) as session:
             if context.user_data["ordersid"] == 0:
-                uid = session.query(User.id).where(User.userid.in_([update.message.from_user.id])).first()
+                uid = session.query(User.id).where(User.userid.in_([str(update.message.from_user.id)])).first()
                 times = int(time.time())
                 tmp = Orders(time = times,user_id=uid)
                 context.user_data["ordersid"] = session.query(Orders.id).where(Orders.time.in_([times])).first()
@@ -167,7 +172,7 @@ async def local_or_delivery(update: Update,context: ContextTypes.DEFAULT_TYPE):
         return await local(update,context)
     else:
         with Session(engine) as session:
-            user = session.query(User).where(User.userid.in_([update.message.from_user.id])).first()
+            user = session.query(User).where(User.userid.in_([str(update.message.from_user.id)])).first()
         if user != None:
             await update.message.reply_text(f"{user}")
             await update.message.reply_text("Інформація актуальна ?", reply_markup=reply_markup)
@@ -240,7 +245,7 @@ async def personal_info_post_number(update: Update,context: ContextTypes.DEFAULT
 async def is_personal_info_correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.text == "Так":
         with Session(engine) as session:
-            user = session.query(User).where(User.userid.in_([update.message.from_user.id])).first()
+            user = session.query(User).where(User.userid.in_([str(update.message.from_user.id)])).first()
             user.name = context.user_data["name"]
             user.surname = context.user_data["surname"]
             user.phone = context.user_data["phone"]

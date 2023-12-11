@@ -21,6 +21,7 @@ class User(Base):
     city: Mapped[str] = mapped_column(String(30),nullable=True)
     post_type: Mapped[str] = mapped_column(String(30),nullable=True)
     post_number: Mapped[int] = mapped_column(nullable=True)
+    #PROBLEMA TYT
     orders: Mapped[List["Orders"]] = relationship(back_populates="User")
 
     def __repr__(self) -> str:
