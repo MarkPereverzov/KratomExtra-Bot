@@ -1,12 +1,11 @@
 from telegram.ext import CommandHandler, CallbackQueryHandler, ContextTypes, ApplicationBuilder,ConversationHandler, MessageHandler,filters
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
-import sqlite3
+import sqlalchemy
 import logging
 from bottoken import TOKEN
 from classes import User
 from classes.Orders import Orders
 from classes.OrderElements import OrderElements
-from dbwrapper import Dbwrapper
 import time
 
 logging.basicConfig(
@@ -27,7 +26,7 @@ local_or_delivery_list = ["🚶 Самовивіз", "🚚 Доставка"]
 post_type_list= ["Почтомат","Відділення"]
 contact_info = "Ви можете забрати своє замовлення за адресою: Вул. 12 Квітня, будинок 3"
 
-db = Dbwrapper.Dbwrapper("D:\\KratomUkraine-Bot\\data.db")
+#db = Dbwrapper.Dbwrapper("D:\\KratomUkraine-Bot\\data.db")
 
 def gen_regex(list):
     st = "^("
@@ -135,9 +134,9 @@ async def is_oreder_correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.text == "Так":
         if context.user_data["ordersid"] == 0:
             times = int(time.time())
-            db.saveOrders(Orders(times,db.getUser({"UserID":update.message.from_user.id}).id))
-            context.user_data["ordersid"] = db.getOrders({"OrderTime":times}).id
-        db.saveOrderElements(OrderElements(context.user_data["variety"],context.user_data["gramms"],context.user_data["package"],context.user_data["ordersid"]))
+            #db.saveOrders(Orders(times,db.getUser({"UserID":update.message.from_user.id}).id))
+            #context.user_data["ordersid"] = db.getOrders({"OrderTime":times}).id
+        #db.saveOrderElements(OrderElements(context.user_data["variety"],context.user_data["gramms"],context.user_data["package"],context.user_data["ordersid"]))
         await update.message.reply_text("Бажаєте додати ще один сорт ?", reply_markup=reply_markup)
         return ONE_MORE
     else:
@@ -159,7 +158,7 @@ async def local_or_delivery(update: Update,context: ContextTypes.DEFAULT_TYPE):
         return await local(update,context)
     else:
         userid = update.message.from_user.id
-        user = db.getUser({"UserId":userid})
+        user = None #db.getUser({"UserId":userid})
         if user != None:
             await update.message.reply_text(f"{user}")
             await update.message.reply_text("Інформація актуальна ?", reply_markup=reply_markup)
@@ -233,11 +232,11 @@ async def is_personal_info_correct(update: Update, context: ContextTypes.DEFAULT
     if update.message.text == "Так":
         userid = update.message.from_user.id
         user = User.User(userid,context.user_data["name"],context.user_data["surname"],context.user_data["phone"],context.user_data["city"],context.user_data["post_type"],context.user_data["post_number"])
-        if db.getUser({"UserId":userid}) == None:
-            db.saveUser(user)
-        else: 
-            db.updateUser(user)
-        print(db.getAllUsers())
+        #if db.getUser({"UserId":userid}) == None:
+            #db.saveUser(user)
+        #else: 
+            #db.updateUser(user)
+        #print(db.getAllUsers())
         context.user_data["ordersid"] = 0
         await update.message.reply_text("Щиро дякуємо за замовлення !",
             reply_markup=start_reply_markup)
