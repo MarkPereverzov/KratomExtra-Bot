@@ -49,7 +49,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["ordersid"] = 0
     with Session(engine) as session:
         uid = update.message.from_user.id
-        if session.query(User.id).where(User.userid.in_([str(uid)])).first() == None:
+        if session.query(User.id).where(User.userid.in_([str(uid)])).first()[0] == None:
             session.add(User(userid=str(uid)))
             session.commit()
     return CHECK
@@ -141,13 +141,15 @@ async def is_oreder_correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.text == "Так":
         with Session(engine) as session:
             if context.user_data["ordersid"] == 0:
-                uid = session.query(User.id).where(User.userid.in_([str(update.message.from_user.id)])).first()
+                uid = session.query(User.id).where(User.userid.in_([str(update.message.from_user.id)])).first()[0]
                 times = int(time.time())
                 tmp = Orders(time = times,user_id=uid)
-                context.user_data["ordersid"] = session.query(Orders.id).where(Orders.time.in_([times])).first()
+                session.add(tmp)
+                session.commit()
+                context.user_data["ordersid"] = session.query(Orders.id).where(Orders.time.in_([times])).first()[0]
 
             tmpoe = OrderElements(tea=context.user_data["variety"],weight=context.user_data["gramms"],amount=context.user_data["package"],type=context.user_data["type"],order_id=context.user_data["ordersid"])
-            session.add_all([tmp])
+            
             session.add_all([tmpoe])
             session.commit()
 
@@ -171,8 +173,9 @@ async def local_or_delivery(update: Update,context: ContextTypes.DEFAULT_TYPE):
     if(lod == local_or_delivery_list[0]):
         return await local(update,context)
     else:
+        #OST
         with Session(engine) as session:
-            user = session.query(User).where(User.userid.in_([str(update.message.from_user.id)])).first()
+            user = session.query(User).where(User.userid.in_([str(update.message.from_user.id)])).first()[0]
         if user != None:
             await update.message.reply_text(f"{user}")
             await update.message.reply_text("Інформація актуальна ?", reply_markup=reply_markup)
@@ -245,7 +248,7 @@ async def personal_info_post_number(update: Update,context: ContextTypes.DEFAULT
 async def is_personal_info_correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.text == "Так":
         with Session(engine) as session:
-            user = session.query(User).where(User.userid.in_([str(update.message.from_user.id)])).first()
+            user = session.query(User).where(User.userid.in_([str(update.message.from_user.id)])).first()[0]
             user.name = context.user_data["name"]
             user.surname = context.user_data["surname"]
             user.phone = context.user_data["phone"]

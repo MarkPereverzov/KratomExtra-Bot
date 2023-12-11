@@ -21,8 +21,7 @@ class User(Base):
     city: Mapped[str] = mapped_column(String(30),nullable=True)
     post_type: Mapped[str] = mapped_column(String(30),nullable=True)
     post_number: Mapped[int] = mapped_column(nullable=True)
-    #PROBLEMA TYT
-    orders: Mapped[List["Orders"]] = relationship(back_populates="User")
+    orders: Mapped[List["Orders"]] = relationship(back_populates="user")
 
     def __repr__(self) -> str:
         return f"Ім'я: {self.name}\nПрізвище: {self.surname}\n"+f"Телефон: {self.phone}\nМісто: {self.city}\n"+f"Почтомат/відділення: {self.post_type}\n"+f"Номер почтомату/відділення: {self.post_number}\n"
@@ -33,7 +32,8 @@ class Orders(Base):
     id: Mapped[int] = mapped_column(primary_key=True,autoincrement=True)
     time: Mapped[int] = mapped_column(default = time.time())
     user_id: Mapped[int] = mapped_column(ForeignKey("User.id"))
-    orderelements: Mapped[List["OrderElements"]] = relationship(back_populates="Orders")
+    user: Mapped["User"] = relationship(back_populates="orders")
+    orderelements: Mapped[List["OrderElements"]] = relationship(back_populates="orders")
 
     def __repr__(self) -> str:
         return f"**Час замовлення:** {self.time}"
@@ -47,6 +47,7 @@ class OrderElements(Base):
     amount: Mapped[int] = mapped_column()
     type: Mapped[str] = mapped_column(String(30))
     order_id: Mapped[int] = mapped_column(ForeignKey("Orders.id"))
+    orders: Mapped["Orders"] = relationship(back_populates="orderelements")
 
     def __repr__(self) -> str:
         return f"**Сорт:** {self.tea}\n**Вага упаковки:** {self.weight}\n**Кількість упаковок:** {self.amount}\n**Номер замовлення:** {self.orderid}"
