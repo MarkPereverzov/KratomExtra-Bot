@@ -66,16 +66,17 @@ async def myorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
         tmpstr += f"{t.__repr__()}\n\n"
         for oe in t.orderelements:
             tmpstr += f"{oe.__repr__()}\n\n"
-        await update.message.reply_text(tmpstr,parse_mode="MarkdownV2")
+        await update.message.reply_text(tmpstr,parse_mode="Markdown")
         tmpstr = ""
 
-    return ConversationHandler.END
+    return CHECK
 
 async def assortment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Ви маєте можливість ознайомитися з асортиментом нашого чаю 🌱",
         reply_markup=start_reply_markup,
     )
+    return CHECK
 
 async def check_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     option = update.message.text
@@ -85,6 +86,16 @@ async def check_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await choose_type(update,context)
     elif option == menu_list[2]:
         return await assortment(update,context) 
+    elif option == menu_list[3]:
+        return await get_help(update,context)
+
+async def get_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Контакт нашого менеджера:\n ☎️*+380991234567* - Іван\n☎️ *+380991234567* - Некто\n📧 *https://t.me/kratom_ukrainee* - KratomUkraine",
+        reply_markup=start_reply_markup,
+        parse_mode="Markdown"
+    )
+    return CHECK
 
 async def choose_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = ReplyKeyboardMarkup([["Розсипний","Капсули"],["Концентрат","Пробний набір"]],one_time_keyboard=True,resize_keyboard=True)
