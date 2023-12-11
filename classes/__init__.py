@@ -38,7 +38,8 @@ class Orders(Base):
 
     def __repr__(self) -> str:
         dt = datetime.fromtimestamp(self.time)
-        return f"**Час замовлення:** {dt.date().year}\-{dt.date().month}\-{dt.date().day} {dt.time().hour}:{dt.time().minute}:{dt.time().second}"
+        #return f"**Час замовлення:** {dt.date().year}\-{dt.date().month}\-{dt.date().day} {dt.time().hour}:{dt.time().minute}:{dt.time().second}"
+        return f"*Час замовлення:* {dt.date()} {dt.time()}"
 
 class OrderElements(Base):
     __tablename__ = "OrderElements"

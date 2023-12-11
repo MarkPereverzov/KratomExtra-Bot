@@ -66,10 +66,10 @@ async def myorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
         tmpstr += f"{t.__repr__()}\n\n"
         for oe in t.orderelements:
             tmpstr += f"{oe.__repr__()}\n\n"
-        await update.message.reply_text(tmpstr,parse_mode="MarkdownV2")
+        await update.message.reply_text(tmpstr,parse_mode="Markdown")
         tmpstr = ""
 
-    return ConversationHandler.END
+    return CHECK
 
 async def assortment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
