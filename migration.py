@@ -1,8 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
-from classes import User
-from classes import Orders
-from classes import OrderElements
+from classes import User,Orders,OrderElements
 
 engine = create_engine("sqlite:///D:\\KratomUkraine-Bot\\database.db", echo=True)
 User.metadata.create_all(engine)
