@@ -1,12 +1,14 @@
 from telegram.ext import CommandHandler, CallbackQueryHandler, ContextTypes, ApplicationBuilder,ConversationHandler, MessageHandler,filters
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
-import sqlalchemy
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
+from sqlalchemy import select, and_, or_
 import logging
-from bottoken import TOKEN
-from classes import User
-from classes import Orders
-from classes import OrderElements
 import time
+from bottoken import TOKEN
+from classes import User,OrderElements,Orders
+
+SRC_PATH = "D:\\KratomUkraine-Bot\\"
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -26,7 +28,7 @@ local_or_delivery_list = ["🚶 Самовивіз", "🚚 Доставка"]
 post_type_list= ["Почтомат","Відділення"]
 contact_info = "Ви можете забрати своє замовлення за адресою: Вул. 12 Квітня, будинок 3"
 
-#db = Dbwrapper.Dbwrapper("D:\\KratomUkraine-Bot\\data.db")
+engine = create_engine(f"sqlite+pysqlite:///{SRC_PATH}database.db", echo=True)
 
 def gen_regex(list):
     st = "^("
@@ -132,11 +134,18 @@ async def package_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def is_oreder_correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = ReplyKeyboardMarkup([["Так","Ні"]],one_time_keyboard=True,resize_keyboard=True)
     if update.message.text == "Так":
-        if context.user_data["ordersid"] == 0:
-            times = int(time.time())
-            #db.saveOrders(Orders(times,db.getUser({"UserID":update.message.from_user.id}).id))
-            #context.user_data["ordersid"] = db.getOrders({"OrderTime":times}).id
-        #db.saveOrderElements(OrderElements(context.user_data["variety"],context.user_data["gramms"],context.user_data["package"],context.user_data["ordersid"]))
+        with Session(engine) as session:
+            if context.user_data["ordersid"] == 0:
+                uid = session.query(User.id).where(User.userid.in_([update.message.from_user.id])).first()
+                times = int(time.time())
+                tmp = Orders(time = times,user_id=uid)
+                context.user_data["ordersid"] = session.query(Orders.id).where(Orders.time.in_([times])).first()
+
+            tmpoe = OrderElements(tea=context.user_data["variety"],weight=context.user_data["gramms"],amount=context.user_data["package"],type=context.user_data["type"],order_id=context.user_data["ordersid"])
+            session.add_all([tmp])
+            session.add_all([tmpoe])
+            session.commit()
+
         await update.message.reply_text("Бажаєте додати ще один сорт ?", reply_markup=reply_markup)
         return ONE_MORE
     else:
@@ -157,8 +166,8 @@ async def local_or_delivery(update: Update,context: ContextTypes.DEFAULT_TYPE):
     if(lod == local_or_delivery_list[0]):
         return await local(update,context)
     else:
-        userid = update.message.from_user.id
-        user = None #db.getUser({"UserId":userid})
+        with Session(engine) as session:
+            user = session.query(User).where(User.userid.in_([update.message.from_user.id])).first()
         if user != None:
             await update.message.reply_text(f"{user}")
             await update.message.reply_text("Інформація актуальна ?", reply_markup=reply_markup)
@@ -230,13 +239,15 @@ async def personal_info_post_number(update: Update,context: ContextTypes.DEFAULT
 
 async def is_personal_info_correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.text == "Так":
-        userid = update.message.from_user.id
-        user = User.User(userid,context.user_data["name"],context.user_data["surname"],context.user_data["phone"],context.user_data["city"],context.user_data["post_type"],context.user_data["post_number"])
-        #if db.getUser({"UserId":userid}) == None:
-            #db.saveUser(user)
-        #else: 
-            #db.updateUser(user)
-        #print(db.getAllUsers())
+        with Session(engine) as session:
+            user = session.query(User).where(User.userid.in_([update.message.from_user.id])).first()
+            user.name = context.user_data["name"]
+            user.surname = context.user_data["surname"]
+            user.phone = context.user_data["phone"]
+            user.city = context.user_data["city"]
+            user.post_type = context.user_data["post_type"]
+            user.post_number = context.user_data["post_number"]
+            session.commit()
         context.user_data["ordersid"] = 0
         await update.message.reply_text("Щиро дякуємо за замовлення !",
             reply_markup=start_reply_markup)
