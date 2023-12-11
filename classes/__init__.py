@@ -6,6 +6,7 @@ from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from typing import List
 import time
+from datetime import datetime
 
 class Base(DeclarativeBase):
     pass
@@ -36,7 +37,8 @@ class Orders(Base):
     orderelements: Mapped[List["OrderElements"]] = relationship(back_populates="orders")
 
     def __repr__(self) -> str:
-        return f"**Час замовлення:** {self.time}"
+        dt = datetime.fromtimestamp(self.time)
+        return f"**Час замовлення:** {dt.date().year}\-{dt.date().month}\-{dt.date().day} {dt.time().hour}:{dt.time().minute}:{dt.time().second}"
 
 class OrderElements(Base):
     __tablename__ = "OrderElements"
@@ -50,4 +52,4 @@ class OrderElements(Base):
     orders: Mapped["Orders"] = relationship(back_populates="orderelements")
 
     def __repr__(self) -> str:
-        return f"**Сорт:** {self.tea}\n**Вага упаковки:** {self.weight}\n**Кількість упаковок:** {self.amount}\n**Номер замовлення:** {self.orderid}"
+        return f"*Тип упаковки:* {self.type}\n*Сорт:* {self.tea}\n*Вага упаковки:* {self.weight}\n*Кількість упаковок:* {self.amount}\n*Номер замовлення:* {self.order_id}"

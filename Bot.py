@@ -55,10 +55,20 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return CHECK
 
 async def myorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    with Session(engine) as session:
+        orders = session.query(Orders).where(Orders.user_id.in_([session.query(User.id).where(User.userid == str(update.message.from_user.id)).first()[0]])).join(OrderElements,OrderElements.id == Orders.id,isouter=True)
     await update.message.reply_text(
-        "Це список ваших замовлень:",
-        reply_markup=start_reply_markup,
-    )
+        f"Це список ваших замовлень:\n",
+        reply_markup=start_reply_markup)
+    
+    tmpstr = ""
+    for t in orders:
+        tmpstr += f"{t.__repr__()}\n\n"
+        for oe in t.orderelements:
+            tmpstr += f"{oe.__repr__()}\n\n"
+        await update.message.reply_text(tmpstr,parse_mode="MarkdownV2")
+        tmpstr = ""
+
     return ConversationHandler.END
 
 async def assortment(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -70,11 +80,11 @@ async def assortment(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def check_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     option = update.message.text
     if option == menu_list[0]:
-        return myorder(update,context)
+        return await myorder(update,context)
     elif option == menu_list[1]:
         return await choose_type(update,context)
     elif option == menu_list[2]:
-        return assortment(update,context) 
+        return await assortment(update,context) 
 
 async def choose_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = ReplyKeyboardMarkup([["Розсипний","Капсули"],["Концентрат","Пробний набір"]],one_time_keyboard=True,resize_keyboard=True)
