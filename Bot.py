@@ -4,8 +4,8 @@ import sqlalchemy
 import logging
 from bottoken import TOKEN
 from classes import User
-from classes.Orders import Orders
-from classes.OrderElements import OrderElements
+from classes import Orders
+from classes import OrderElements
 import time
 
 logging.basicConfig(
