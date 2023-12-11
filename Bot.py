@@ -173,10 +173,9 @@ async def local_or_delivery(update: Update,context: ContextTypes.DEFAULT_TYPE):
     if(lod == local_or_delivery_list[0]):
         return await local(update,context)
     else:
-        #OST
         with Session(engine) as session:
-            user = session.query(User).where(User.userid.in_([str(update.message.from_user.id)])).first()[0]
-        if user != None:
+            user = session.query(User).where(User.userid.in_([str(update.message.from_user.id)])).first()
+        if user.name != None:
             await update.message.reply_text(f"{user}")
             await update.message.reply_text("Інформація актуальна ?", reply_markup=reply_markup)
             return ASK_UPDATE_PERSONAL
@@ -238,9 +237,9 @@ async def personal_info_post_number(update: Update,context: ContextTypes.DEFAULT
     post_number = update.message.text
     userid = update.message.from_user.id
     context.user_data["post_number"] = post_number
-    user = User.User(userid,context.user_data["name"],context.user_data["surname"],context.user_data["phone"],context.user_data["city"],context.user_data["post_type"],post_number)
+    user = User(name=context.user_data["name"],surname=context.user_data["surname"],phone=context.user_data["phone"],city=context.user_data["city"],post_type=context.user_data["post_type"],post_number=post_number)
     await update.message.reply_text(
-        f"userid: {userid}\n{user}\nВсе вказано вірно ?",
+        f"{user}\nВсе вказано вірно ?",
         reply_markup=reply_markup,
     )
     return PERSONAL_INFO_CORRECT
@@ -248,7 +247,7 @@ async def personal_info_post_number(update: Update,context: ContextTypes.DEFAULT
 async def is_personal_info_correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.text == "Так":
         with Session(engine) as session:
-            user = session.query(User).where(User.userid.in_([str(update.message.from_user.id)])).first()[0]
+            user = session.query(User).where(User.userid.in_([str(update.message.from_user.id)])).first()
             user.name = context.user_data["name"]
             user.surname = context.user_data["surname"]
             user.phone = context.user_data["phone"]
@@ -268,8 +267,6 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(update.effective_chat.id, 'Замовлення призупинено')
 
 app = ApplicationBuilder().token(TOKEN).build()
-#app.add_handler(CommandHandler(["start","hello"], start))
-#app.add_handler(CommandHandler(["order","make_order"], make_order))
 app.add_handler(ConversationHandler(
         entry_points=[CommandHandler(["start","hello"], start),[MessageHandler(filters.Regex(gen_regex(menu_list)),check_menu)]],
         states={
