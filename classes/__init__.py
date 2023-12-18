@@ -54,3 +54,11 @@ class OrderElements(Base):
 
     def __repr__(self) -> str:
         return f"*Тип упаковки:* {self.type}\n*Сорт:* {self.tea}\n*Вага упаковки:* {self.weight}\n*Кількість упаковок:* {self.amount}\n*Номер замовлення:* {self.order_id}"
+
+class Kratom(Base):
+    __tablename__ = "kratom_variety"
+
+    id: Mapped[int] = mapped_column(primary_key=True,autoincrement=True)
+    variety: Mapped[str] = mapped_column(String(30))
+    img: Mapped[str] = mapped_column(String(30))
+    description: Mapped[str] = mapped_column(String(1024))

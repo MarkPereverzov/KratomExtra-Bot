@@ -1,12 +1,13 @@
 from telegram.ext import CommandHandler, CallbackQueryHandler, ContextTypes, ApplicationBuilder,ConversationHandler, MessageHandler,filters
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, InputMediaPhoto
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy import select, and_, or_
 import logging
 import time
 from bottoken import TOKEN
-from classes import User,OrderElements,Orders
+from classes import User,OrderElements,Orders, Kratom
+from sqlalchemy.sql.expression import func
 
 SRC_PATH = "D:\\KratomUkraine-Bot\\"
 
@@ -29,6 +30,7 @@ post_type_list= ["Почтомат","Відділення"]
 contact_info = "Ви можете забрати своє замовлення за адресою: Вул. 12 Квітня, будинок 3"
 
 engine = create_engine(f"sqlite+pysqlite:///{SRC_PATH}database.db", echo=True)
+kratom_engine = create_engine(f"sqlite+pysqlite:///{SRC_PATH}kratom.db", echo=True)
 
 def gen_regex(list):
     st = "^("
@@ -44,9 +46,16 @@ def gen_regex(list):
 
 LOCALORDELIVERY,ORDER_CORRECT,TEA,HELP,MYORDER,CHECK,TYPE,ORDER,VARIETY, GRAMMS, COUNT,PACKAGE, ASSORTMENT,PERSONAL_INFO,PERSONAL_SURNAME,PERSONAL_PHONE,PERSONAL_CITY,PERSONAL_POST_TYPE,PERSONAL_POST_TYPE_CHOOSE,PERSONAL_INFO_CORRECT,PERSONAL_POST_NUMBER,ASK_UPDATE_PERSONAL,ONE_MORE = range(23)
 
+CATALOG_TYPE, CHOOSE_KRATOM, THREE, FOUR = range(4)
+VARIETY_COUNT = 0
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global VARIETY_COUNT
     await context.bot.send_message(update.effective_chat.id, 'Вас вітає Kratom Ukraine телеграм бот.👋\nТут ви можете оформити онлайн замовлення або дізнатися детальніше про наш чай 🌱',reply_markup=start_reply_markup)
     context.user_data["ordersid"] = 0
+
+    with Session(kratom_engine) as session:
+        VARIETY_COUNT = session.query(func.max(Kratom.id)).first()[0]
     with Session(engine) as session:
         uid = update.message.from_user.id
         if session.query(User.id).where(User.userid.in_([str(uid)])).first()[0] == None:
@@ -81,13 +90,87 @@ async def assortment(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def check_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     option = update.message.text
     if option == menu_list[0]:
-        return await myorder(update,context)
+        return await catalog(update,context)
     elif option == menu_list[1]:
         return await choose_type(update,context)
     elif option == menu_list[2]:
         return await assortment(update,context) 
     elif option == menu_list[3]:
         return await get_help(update,context)
+
+async def catalog(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [
+            InlineKeyboardButton("🌿Розсипний", callback_data=f"{str(CATALOG_TYPE)}Розсипний"),
+            InlineKeyboardButton("💊Капсули", callback_data=f"{str(CATALOG_TYPE)}Капсули"),
+        ],
+        [
+            InlineKeyboardButton("Концентрат", callback_data=f"{str(CATALOG_TYPE)}Концентрат"),
+            InlineKeyboardButton("📦Пробний набір", callback_data=f"{str(CATALOG_TYPE)}Пробний"),
+
+        ],
+    ]
+    context.user_data["current_variety"] = 1
+    await context.bot.send_photo(chat_id=update.effective_chat.id,
+        photo=open(f"images/diagram2.jpg", 'rb'),
+        caption="У нашому каталозі ти можеш знайти кратом на будь-який смак 🌱",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+async def update_message_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    keyboard = [
+        [
+            InlineKeyboardButton("⬅️", callback_data=f"{str(CHOOSE_KRATOM)}Left"),
+            InlineKeyboardButton(f'{context.user_data["current_variety"]}/{VARIETY_COUNT}', callback_data=f"{str(CHOOSE_KRATOM)}Count"),
+            InlineKeyboardButton("➡️", callback_data=f"{str(CHOOSE_KRATOM)}Right"),
+        ],
+        [
+            InlineKeyboardButton("Назад", callback_data=f"{str(CHOOSE_KRATOM)}Назад"),
+            InlineKeyboardButton("🛍️Сума", callback_data=f"{str(CHOOSE_KRATOM)}Сума"),
+
+        ],
+    ]
+    query = update.callback_query
+    kratom = None
+    with Session(kratom_engine) as session:
+        kratom = session.query(Kratom).where(Kratom.id == context.user_data["current_variety"]).first()
+    print(kratom)
+    await query.edit_message_media( media=InputMediaPhoto(
+        media=open(f"images/{kratom.img}", 'rb'),
+        caption=f"{kratom.description}"),
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+async def catalog_type_check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    context.user_data["type"] = query.data.split(str(CATALOG_TYPE))[1]
+    await update_message_button(update,context)
+
+    await query.answer()
+
+async def choose_kratom_check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    current_variety = context.user_data["current_variety"]
+
+    if query.data == f"{str(CHOOSE_KRATOM)}Left":
+        current_variety -= 1
+        if current_variety == 0:
+            current_variety = VARIETY_COUNT
+
+    elif query.data == f"{str(CHOOSE_KRATOM)}Right":
+        current_variety += 1
+        if current_variety == VARIETY_COUNT+1:
+            current_variety = 1
+
+    elif query.data == f"{str(CHOOSE_KRATOM)}Назад":
+        await context.bot.deleteMessage(message_id=update.effective_message.id,chat_id=update.effective_chat.id)
+        await catalog(update,context)
+    
+    context.user_data["current_variety"] = current_variety
+    
+    if query.data != f"{str(CHOOSE_KRATOM)}Count":
+        await update_message_button(update,context)
+    await query.answer()
 
 async def get_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -291,7 +374,11 @@ app = ApplicationBuilder().token(TOKEN).build()
 app.add_handler(ConversationHandler(
         entry_points=[CommandHandler(["start","hello"], start),[MessageHandler(filters.Regex(gen_regex(menu_list)),check_menu)]],
         states={
-            CHECK: [MessageHandler(filters.Regex(gen_regex(menu_list)),check_menu)],
+            CHECK: [
+                MessageHandler(filters.Regex(gen_regex(menu_list)),check_menu),
+                CallbackQueryHandler(catalog_type_check, pattern="^"+str(CATALOG_TYPE)+".*$"),
+                CallbackQueryHandler(choose_kratom_check, pattern="^"+str(CHOOSE_KRATOM)+".*$")
+                ],
             TEA: [MessageHandler(filters.TEXT,choose_tea)],
             VARIETY: [MessageHandler(filters.Regex(gen_regex(variety_dict["UA"])), variety_select)],
             GRAMMS: [MessageHandler(filters.Regex(gen_regex(gramms_list)), gramms_select)],
