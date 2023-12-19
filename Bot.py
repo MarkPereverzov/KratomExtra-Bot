@@ -161,25 +161,26 @@ async def choose_grade_check(update: Update, context: ContextTypes.DEFAULT_TYPE)
         current_grade -= 1
         if current_grade == 0:
             current_grade = GRADE_COUNT
+        context.user_data["current_grade"] = current_grade
+        await choose_kratom_grade(update,context)
 
     elif query.data == f"{str(CHOOSE_GRADE)}Right":
         current_grade += 1
         if current_grade == GRADE_COUNT+1:
             current_grade = 1
-
-    elif query.data == f"{str(CHOOSE_GRADE)}Обрати":
-        with Session(kratom_engine) as session:
-            context.user_data["variety_count"] = len(session.query(Kratom.id).where(Kratom.grade_id == context.user_data["current_grade"]).all())
-        await update_message_button(update,context)
+        context.user_data["current_grade"] = current_grade
+        await choose_kratom_grade(update,context)
 
     elif query.data == f"{str(CHOOSE_GRADE)}Назад":
         await context.bot.deleteMessage(message_id=update.effective_message.id,chat_id=update.effective_chat.id)
         await catalog(update,context)
-    
-    context.user_data["current_grade"] = current_grade
-    
-    if query.data != f"{str(CHOOSE_GRADE)}Count" and GRADE_COUNT != 1:
+        
+    elif query.data == f"{str(CHOOSE_GRADE)}Обрати":
+        with Session(kratom_engine) as session:
+            context.user_data["current_variety"] = 1
+            context.user_data["variety_count"] = len(session.query(Kratom.id).where(Kratom.grade_id == context.user_data["current_grade"]).all())
         await update_message_button(update,context)
+
     await query.answer()
 
 async def update_message_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -188,6 +189,7 @@ async def update_message_button(update: Update, context: ContextTypes.DEFAULT_TY
     kratom = None
     kel = []
     with Session(kratom_engine) as session:
+        print(session.query(Kratom.id).where(Kratom.grade_id == grade_id).all())
         kratom_id = session.query(Kratom.id).where(Kratom.grade_id == grade_id).all()[context.user_data["current_variety"]-1][0]
         kratom = session.query(Kratom).where(Kratom.id == kratom_id).first()
         typecosts = session.query(TypeCost.id).where(TypeCost.grade_id == kratom.grade_id).all()
@@ -224,21 +226,21 @@ async def choose_kratom_check(update: Update, context: ContextTypes.DEFAULT_TYPE
         current_variety -= 1
         if current_variety == 0:
             current_variety = variety_count
+        context.user_data["current_variety"] = current_variety
+        await update_message_button(update,context)
 
     elif query.data == f"{str(CHOOSE_KRATOM)}Right":
         current_variety += 1
         if current_variety == variety_count+1:
             current_variety = 1
+        context.user_data["current_variety"] = current_variety
+        await update_message_button(update,context)
 
     elif query.data == f"{str(CHOOSE_KRATOM)}Назад":
         #await context.bot.deleteMessage(message_id=update.effective_message.id,chat_id=update.effective_chat.id)
         #await catalog(update,context)
         await choose_kratom_grade(update,context)
     
-    context.user_data["current_variety"] = current_variety
-    
-    if query.data != f"{str(CHOOSE_KRATOM)}Count" and variety_count != 1:
-        await update_message_button(update,context)
     await query.answer()
 
 async def get_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
