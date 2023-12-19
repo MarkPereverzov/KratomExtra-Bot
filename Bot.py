@@ -6,7 +6,7 @@ from sqlalchemy import select, and_, or_
 import logging
 import time
 from bottoken import TOKEN
-from classes import User,OrderElements,Orders, Kratom
+from classes import User,OrderElements,Orders, Kratom, Grade,GradeCost,CostElement
 from sqlalchemy.sql.expression import func
 
 SRC_PATH = "D:\\KratomUkraine-Bot\\"
@@ -46,16 +46,16 @@ def gen_regex(list):
 
 LOCALORDELIVERY,ORDER_CORRECT,TEA,HELP,MYORDER,CHECK,TYPE,ORDER,VARIETY, GRAMMS, COUNT,PACKAGE, ASSORTMENT,PERSONAL_INFO,PERSONAL_SURNAME,PERSONAL_PHONE,PERSONAL_CITY,PERSONAL_POST_TYPE,PERSONAL_POST_TYPE_CHOOSE,PERSONAL_INFO_CORRECT,PERSONAL_POST_NUMBER,ASK_UPDATE_PERSONAL,ONE_MORE = range(23)
 
-CATALOG_TYPE, CHOOSE_KRATOM, THREE, FOUR = range(4)
-VARIETY_COUNT = 0
+CATALOG_TYPE, CHOOSE_KRATOM, CHOOSE_GRADE, FOUR = range(4)
+GRADE_COUNT = 0
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global VARIETY_COUNT
+    global GRADE_COUNT
     await context.bot.send_message(update.effective_chat.id, 'Вас вітає Kratom Ukraine телеграм бот.👋\nТут ви можете оформити онлайн замовлення або дізнатися детальніше про наш чай 🌱',reply_markup=start_reply_markup)
     context.user_data["ordersid"] = 0
 
     with Session(kratom_engine) as session:
-        VARIETY_COUNT = session.query(func.max(Kratom.id)).first()[0]
+        GRADE_COUNT = session.query(func.max(Grade.id)).first()[0]
     with Session(engine) as session:
         uid = update.message.from_user.id
         if session.query(User.id).where(User.userid.in_([str(uid)])).first()[0] == None:
@@ -110,6 +110,7 @@ async def catalog(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         ],
     ]
+    context.user_data["current_grade"] = 1
     context.user_data["current_variety"] = 1
     await context.bot.send_photo(chat_id=update.effective_chat.id,
         photo=open(f"images/diagram2.jpg", 'rb'),
@@ -117,11 +118,85 @@ async def catalog(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
-async def update_message_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def catalog_type_check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    context.user_data["type"] = query.data.split(str(CATALOG_TYPE))[1]
+    #await update_message_button(update,context)
+    await choose_kratom_grade(update,context)
+
+    await query.answer()
+
+async def choose_kratom_grade(update:Update,context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [
+            InlineKeyboardButton("Обрати ✅", callback_data=f"{str(CHOOSE_GRADE)}Обрати")
+        ],
+        [
+            InlineKeyboardButton("⬅️", callback_data=f"{str(CHOOSE_GRADE)}Left"),
+            InlineKeyboardButton(f'{context.user_data["current_grade"]}/{GRADE_COUNT}', callback_data=f"{str(CHOOSE_GRADE)}Count"),
+            InlineKeyboardButton("➡️", callback_data=f"{str(CHOOSE_GRADE)}Right"),
+        ],
+        [
+            InlineKeyboardButton("Назад", callback_data=f"{str(CHOOSE_GRADE)}Назад"),
+            #InlineKeyboardButton("🛍️Сума", callback_data=f"{str(CHOOSE_KRATOM)}Сума"),
+        ],
+    ]
+    query = update.callback_query
+    grade = None
+    with Session(kratom_engine) as session:
+        grade = session.query(Grade).where(Grade.id == context.user_data["current_grade"]).first()
+    print(grade)
+    await query.edit_message_media( media=InputMediaPhoto(
+        media=open(f"images/{grade.img}", 'rb'),
+        caption=f"{grade.description}"),
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+async def choose_grade_check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    current_grade = context.user_data["current_grade"]
+
+    if query.data == f"{str(CHOOSE_GRADE)}Left":
+        current_grade -= 1
+        if current_grade == 0:
+            current_grade = GRADE_COUNT
+
+    elif query.data == f"{str(CHOOSE_GRADE)}Right":
+        current_grade += 1
+        if current_grade == GRADE_COUNT+1:
+            current_grade = 1
+
+    elif query.data == f"{str(CHOOSE_GRADE)}Обрати":
+        with Session(kratom_engine) as session:
+            context.user_data["variety_count"] = len(session.query(Kratom.id).where(Kratom.grade_id == context.user_data["current_grade"]).first())
+        await update_message_button(update,context)
+
+    elif query.data == f"{str(CHOOSE_GRADE)}Назад":
+        await context.bot.deleteMessage(message_id=update.effective_message.id,chat_id=update.effective_chat.id)
+        await catalog(update,context)
+    
+    context.user_data["current_grade"] = current_grade
+    
+    if query.data != f"{str(CHOOSE_GRADE)}Count" and GRADE_COUNT != 1:
+        await update_message_button(update,context)
+    await query.answer()
+
+async def update_message_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    grade_id = context.user_data["current_grade"]
+    query = update.callback_query
+    kratom = None
+    with Session(kratom_engine) as session:
+        kratom_id = session.query(Kratom.id).where(Kratom.grade_id == context.user_data["current_grade"]).first()[context.user_data["current_variety"]-1]
+        kratom = session.query(Kratom).where(Kratom.id == kratom_id).join(Kratom.gradecost).first()
+        costelement = session.query(CostElement).where(CostElement.id == kratom.gradecost.costelement_id).first()
+    print(kratom)
+    keyboard = [
+        [
+            InlineKeyboardButton(f"{costelement.title} {costelement.cost}₴", callback_data=f"{str(CHOOSE_KRATOM)}{costelement.title}"),
+        ],
+        [
             InlineKeyboardButton("⬅️", callback_data=f"{str(CHOOSE_KRATOM)}Left"),
-            InlineKeyboardButton(f'{context.user_data["current_variety"]}/{VARIETY_COUNT}', callback_data=f"{str(CHOOSE_KRATOM)}Count"),
+            InlineKeyboardButton(f'{context.user_data["current_variety"]}/{context.user_data["variety_count"]}', callback_data=f"{str(CHOOSE_KRATOM)}Count"),
             InlineKeyboardButton("➡️", callback_data=f"{str(CHOOSE_KRATOM)}Right"),
         ],
         [
@@ -130,45 +205,35 @@ async def update_message_button(update: Update, context: ContextTypes.DEFAULT_TY
 
         ],
     ]
-    query = update.callback_query
-    kratom = None
-    with Session(kratom_engine) as session:
-        kratom = session.query(Kratom).where(Kratom.id == context.user_data["current_variety"]).first()
-    print(kratom)
     await query.edit_message_media( media=InputMediaPhoto(
         media=open(f"images/{kratom.img}", 'rb'),
         caption=f"{kratom.description}"),
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
-async def catalog_type_check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    context.user_data["type"] = query.data.split(str(CATALOG_TYPE))[1]
-    await update_message_button(update,context)
-
-    await query.answer()
-
 async def choose_kratom_check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     current_variety = context.user_data["current_variety"]
+    variety_count = context.user_data["variety_count"]
 
     if query.data == f"{str(CHOOSE_KRATOM)}Left":
         current_variety -= 1
         if current_variety == 0:
-            current_variety = VARIETY_COUNT
+            current_variety = variety_count
 
     elif query.data == f"{str(CHOOSE_KRATOM)}Right":
         current_variety += 1
-        if current_variety == VARIETY_COUNT+1:
+        if current_variety == variety_count+1:
             current_variety = 1
 
     elif query.data == f"{str(CHOOSE_KRATOM)}Назад":
-        await context.bot.deleteMessage(message_id=update.effective_message.id,chat_id=update.effective_chat.id)
-        await catalog(update,context)
+        #await context.bot.deleteMessage(message_id=update.effective_message.id,chat_id=update.effective_chat.id)
+        #await catalog(update,context)
+        await choose_kratom_grade(update,context)
     
     context.user_data["current_variety"] = current_variety
     
-    if query.data != f"{str(CHOOSE_KRATOM)}Count":
+    if query.data != f"{str(CHOOSE_KRATOM)}Count" and variety_count != 1:
         await update_message_button(update,context)
     await query.answer()
 
@@ -377,7 +442,8 @@ app.add_handler(ConversationHandler(
             CHECK: [
                 MessageHandler(filters.Regex(gen_regex(menu_list)),check_menu),
                 CallbackQueryHandler(catalog_type_check, pattern="^"+str(CATALOG_TYPE)+".*$"),
-                CallbackQueryHandler(choose_kratom_check, pattern="^"+str(CHOOSE_KRATOM)+".*$")
+                CallbackQueryHandler(choose_kratom_check, pattern="^"+str(CHOOSE_KRATOM)+".*$"),
+                CallbackQueryHandler(choose_grade_check, pattern="^"+str(CHOOSE_GRADE)+".*$")
                 ],
             TEA: [MessageHandler(filters.TEXT,choose_tea)],
             VARIETY: [MessageHandler(filters.Regex(gen_regex(variety_dict["UA"])), variety_select)],
