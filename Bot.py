@@ -169,7 +169,7 @@ async def choose_grade_check(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     elif query.data == f"{str(CHOOSE_GRADE)}Обрати":
         with Session(kratom_engine) as session:
-            context.user_data["variety_count"] = len(session.query(Kratom.id).where(Kratom.grade_id == context.user_data["current_grade"]).first())
+            context.user_data["variety_count"] = len(session.query(Kratom.id).where(Kratom.grade_id == context.user_data["current_grade"]).all())
         await update_message_button(update,context)
 
     elif query.data == f"{str(CHOOSE_GRADE)}Назад":
@@ -188,7 +188,7 @@ async def update_message_button(update: Update, context: ContextTypes.DEFAULT_TY
     kratom = None
     kel = []
     with Session(kratom_engine) as session:
-        kratom_id = session.query(Kratom.id).where(Kratom.grade_id == context.user_data["current_grade"]).first()[context.user_data["current_variety"]-1]
+        kratom_id = session.query(Kratom.id).where(Kratom.grade_id == grade_id).all()[context.user_data["current_variety"]-1][0]
         kratom = session.query(Kratom).where(Kratom.id == kratom_id).first()
         typecosts = session.query(TypeCost.id).where(TypeCost.grade_id == kratom.grade_id).all()
 
