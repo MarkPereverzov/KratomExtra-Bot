@@ -5,8 +5,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, and_, or_
 import logging
 import time
+from typing import List
 from bottoken import TOKEN
-from classes import User,OrderElements,Orders, Kratom, Grade,GradeCost,CostElement
+from classes import User,OrderElements,Orders, Kratom, Grade,TypeCost,CostElement
 from sqlalchemy.sql.expression import func
 
 SRC_PATH = "D:\\KratomUkraine-Bot\\"
@@ -185,30 +186,33 @@ async def update_message_button(update: Update, context: ContextTypes.DEFAULT_TY
     grade_id = context.user_data["current_grade"]
     query = update.callback_query
     kratom = None
+    kel = []
     with Session(kratom_engine) as session:
         kratom_id = session.query(Kratom.id).where(Kratom.grade_id == context.user_data["current_grade"]).first()[context.user_data["current_variety"]-1]
-        kratom = session.query(Kratom).where(Kratom.id == kratom_id).join(Kratom.gradecost).first()
-        costelement = session.query(CostElement).where(CostElement.id == kratom.gradecost.costelement_id).first()
-    print(kratom)
-    keyboard = [
-        [
-            InlineKeyboardButton(f"{costelement.title} {costelement.cost}₴", callback_data=f"{str(CHOOSE_KRATOM)}{costelement.title}"),
-        ],
-        [
+        kratom = session.query(Kratom).where(Kratom.id == kratom_id).first()
+        typecosts = session.query(TypeCost.id).where(TypeCost.grade_id == kratom.grade_id).all()
+
+        tmptypecostid = []
+        for typecost in typecosts:
+            tmptypecostid.append(typecost[0])
+
+        costelements = session.query(CostElement).where(CostElement.id.in_(tmptypecostid)).all()
+    for costelement in costelements:
+        kel.append([InlineKeyboardButton(f"{costelement.count}\t{costelement.title}\t{costelement.cost}₴", callback_data=f"{str(CHOOSE_KRATOM)}{costelement.id}")])
+
+    kel.append([
             InlineKeyboardButton("⬅️", callback_data=f"{str(CHOOSE_KRATOM)}Left"),
             InlineKeyboardButton(f'{context.user_data["current_variety"]}/{context.user_data["variety_count"]}', callback_data=f"{str(CHOOSE_KRATOM)}Count"),
             InlineKeyboardButton("➡️", callback_data=f"{str(CHOOSE_KRATOM)}Right"),
-        ],
-        [
+            ])
+    kel.append([
             InlineKeyboardButton("Назад", callback_data=f"{str(CHOOSE_KRATOM)}Назад"),
             InlineKeyboardButton("🛍️Сума", callback_data=f"{str(CHOOSE_KRATOM)}Сума"),
-
-        ],
-    ]
+            ])
     await query.edit_message_media( media=InputMediaPhoto(
         media=open(f"images/{kratom.img}", 'rb'),
         caption=f"{kratom.description}"),
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        reply_markup=InlineKeyboardMarkup(kel)
     )
 
 async def choose_kratom_check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

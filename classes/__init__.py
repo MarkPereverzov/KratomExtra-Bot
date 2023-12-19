@@ -62,23 +62,25 @@ class Grade(Base):
     grade: Mapped[str] = mapped_column(String(30))
     img: Mapped[str] = mapped_column(String(30))
     description: Mapped[str] = mapped_column(String(1024))
+    typecosts: Mapped[List["TypeCost"]] = relationship(back_populates="grade")
 
 class CostElement(Base):
     __tablename__ = "kratom_costelement"
 
     id: Mapped[int] = mapped_column(primary_key=True,autoincrement=True)
     title: Mapped[str] = mapped_column(String(30))
+    count: Mapped[str] = mapped_column(String(30))
     cost: Mapped[int] = mapped_column()
 
-class GradeCost(Base):
-    __tablename__ = "kratom_gradecost"
+class TypeCost(Base):
+    __tablename__ = "kratom_typecost"
 
     id: Mapped[int] = mapped_column(primary_key=True,autoincrement=True)
     type: Mapped[str] = mapped_column(String(30))
-    grade_id: Mapped[int] = mapped_column(ForeignKey(Grade.id))
     costelement_id: Mapped[int] = mapped_column(ForeignKey(CostElement.id))
-    costelement: Mapped["CostElement"] = relationship()
-    grade: Mapped["Grade"] = relationship()
+    costelement: Mapped["CostElement"] =  relationship()
+    grade_id: Mapped[int] = mapped_column(ForeignKey(Grade.id))
+    grade: Mapped["Grade"] = relationship(back_populates="typecosts")
 
 class Kratom(Base):
     __tablename__ = "kratom_variety"
@@ -87,8 +89,6 @@ class Kratom(Base):
     variety: Mapped[str] = mapped_column(String(30))
     img: Mapped[str] = mapped_column(String(30))
     description: Mapped[str] = mapped_column(String(1024))
-    gradecost_id: Mapped[int] = mapped_column(ForeignKey(GradeCost.id))
-    gradecost: Mapped["GradeCost"] = relationship()
     grade_id: Mapped[int] = mapped_column(ForeignKey(Grade.id))
     grade: Mapped["Grade"] = relationship()
 
