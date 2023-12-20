@@ -47,13 +47,14 @@ def gen_regex(list):
 
 LOCALORDELIVERY,ORDER_CORRECT,TEA,HELP,MYORDER,CHECK,TYPE,ORDER,VARIETY, GRAMMS, COUNT,PACKAGE, ASSORTMENT,PERSONAL_INFO,PERSONAL_SURNAME,PERSONAL_PHONE,PERSONAL_CITY,PERSONAL_POST_TYPE,PERSONAL_POST_TYPE_CHOOSE,PERSONAL_INFO_CORRECT,PERSONAL_POST_NUMBER,ASK_UPDATE_PERSONAL,ONE_MORE = range(23)
 
-CATALOG_TYPE, CHOOSE_KRATOM, CHOOSE_GRADE, CHOOSE_COST = range(4)
+CATALOG_TYPE, CHOOSE_KRATOM, CHOOSE_GRADE, CHOOSE_COST, CHANGE_COUNT = range(5)
 GRADE_COUNT = 0
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global GRADE_COUNT
     await context.bot.send_message(update.effective_chat.id, 'Вас вітає Kratom Ukraine телеграм бот.👋\nТут ви можете оформити онлайн замовлення або дізнатися детальніше про наш чай 🌱',reply_markup=start_reply_markup)
     context.user_data["ordersid"] = 0
+    context.user_data["current_costelement_id"] = 0
 
     with Session(kratom_engine) as session:
         GRADE_COUNT = session.query(func.max(Grade.id)).first()[0]
@@ -205,7 +206,14 @@ async def update_message_button(update: Update, context: ContextTypes.DEFAULT_TY
 
         costelements = session.query(CostElement).where(CostElement.id.in_(tmptypecostid)).all()
     for costelement in costelements:
-        kel.append([InlineKeyboardButton(f"{costelement.count}\t{costelement.title}\t{costelement.cost}₴", callback_data=f"{str(CHOOSE_COST)}{costelement.id}")])
+        if context.user_data["current_costelement_id"] != str(costelement.id):
+            kel.append([InlineKeyboardButton(f"{costelement.count}\t{costelement.title}\t{costelement.cost}₴", callback_data=f"{str(CHOOSE_COST)}{costelement.id}")])
+        else:
+            kel.append([
+                InlineKeyboardButton("-1",callback_data=f"{str(CHANGE_COUNT)}-1"),
+                InlineKeyboardButton("Редагувати",callback_data=f"{str(CHANGE_COUNT)}Редагувати"),
+                InlineKeyboardButton("+1",callback_data=f"{str(CHANGE_COUNT)}+1"),
+                ])
 
     kel.append([
             InlineKeyboardButton("⬅️", callback_data=f"{str(CHOOSE_KRATOM)}Left"),
@@ -250,13 +258,16 @@ async def choose_cost_check(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     query = update.callback_query
     current_variety = context.user_data["current_variety"]
     current_kratom_id = context.user_data["current_kratom_id"]
+    context.user_data["current_costelement_id"] = query.data.split(f"{CHOOSE_COST}")[1]
 
-    context.user_data["order"].orderelements.append(OrderElements(costelement_id=query.data.split(f"{CHOOSE_COST}")[1],kratom_id=current_kratom_id))
-    
-    for order in context.user_data["order"].orderelements:
+    context.user_data["order"].orderelements.append(OrderElements(costelement_id=context.user_data["current_costelement_id"],kratom_id=current_kratom_id))
+
+    #for order in context.user_data["order"].orderelements:
         #UPDATE BUTTON
 
     await query.answer()
+    await update_message_button(update,context)
+
 
 async def get_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
