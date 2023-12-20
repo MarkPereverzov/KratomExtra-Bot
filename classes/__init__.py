@@ -41,20 +41,6 @@ class Orders(Base):
         #return f"**Час замовлення:** {dt.date().year}\-{dt.date().month}\-{dt.date().day} {dt.time().hour}:{dt.time().minute}:{dt.time().second}"
         return f"*Час замовлення:* {dt.date()} {dt.time()}"
 
-class OrderElements(Base):
-    __tablename__ = "OrderElements"
-
-    id: Mapped[int] = mapped_column(primary_key=True,autoincrement=True)
-    tea: Mapped[str] = mapped_column(String(30))
-    weight: Mapped[int] = mapped_column()
-    amount: Mapped[int] = mapped_column()
-    type: Mapped[str] = mapped_column(String(30))
-    order_id: Mapped[int] = mapped_column(ForeignKey("Orders.id"))
-    orders: Mapped["Orders"] = relationship(back_populates="orderelements")
-    
-    def __repr__(self) -> str:
-        return f"*Тип упаковки:* {self.type}\n*Сорт:* {self.tea}\n*Вага упаковки:* {self.weight}\n*Кількість упаковок:* {self.amount}\n*Номер замовлення:* {self.order_id}"
-
 class Grade(Base):
     __tablename__ = "kratom_grade"
 
@@ -92,7 +78,19 @@ class Kratom(Base):
     grade_id: Mapped[int] = mapped_column(ForeignKey(Grade.id))
     grade: Mapped["Grade"] = relationship()
 
+class OrderElements(Base):
+    __tablename__ = "OrderElements"
 
+    id: Mapped[int] = mapped_column(primary_key=True,autoincrement=True)
+    costelement_id: Mapped[int] = mapped_column(ForeignKey(CostElement.id))
+    costelement: Mapped["CostElement"] =  relationship()
+    kratom_id: Mapped[int] = mapped_column(ForeignKey(Kratom.id))
+    kratom: Mapped["Kratom"] =  relationship()
+    order_id: Mapped[int] = mapped_column(ForeignKey("Orders.id"))
+    orders: Mapped["Orders"] = relationship(back_populates="orderelements")
+    
+    #def __repr__(self) -> str:
+    #    return f"*Тип упаковки:* {self.type}\n*Сорт:* {self.tea}\n*Вага упаковки:* {self.weight}\n*Кількість упаковок:* {self.amount}\n*Номер замовлення:* {self.order_id}"
     
 
     

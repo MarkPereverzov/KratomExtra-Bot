@@ -30,7 +30,7 @@ local_or_delivery_list = ["🚶 Самовивіз", "🚚 Доставка"]
 post_type_list= ["Почтомат","Відділення"]
 contact_info = "Ви можете забрати своє замовлення за адресою: Вул. 12 Квітня, будинок 3"
 
-engine = create_engine(f"sqlite+pysqlite:///{SRC_PATH}database.db", echo=True)
+#engine = create_engine(f"sqlite+pysqlite:///{SRC_PATH}database.db", echo=True)
 kratom_engine = create_engine(f"sqlite+pysqlite:///{SRC_PATH}kratom.db", echo=True)
 
 def gen_regex(list):
@@ -47,7 +47,7 @@ def gen_regex(list):
 
 LOCALORDELIVERY,ORDER_CORRECT,TEA,HELP,MYORDER,CHECK,TYPE,ORDER,VARIETY, GRAMMS, COUNT,PACKAGE, ASSORTMENT,PERSONAL_INFO,PERSONAL_SURNAME,PERSONAL_PHONE,PERSONAL_CITY,PERSONAL_POST_TYPE,PERSONAL_POST_TYPE_CHOOSE,PERSONAL_INFO_CORRECT,PERSONAL_POST_NUMBER,ASK_UPDATE_PERSONAL,ONE_MORE = range(23)
 
-CATALOG_TYPE, CHOOSE_KRATOM, CHOOSE_GRADE, FOUR = range(4)
+CATALOG_TYPE, CHOOSE_KRATOM, CHOOSE_GRADE, CHOOSE_COST = range(4)
 GRADE_COUNT = 0
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -57,15 +57,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     with Session(kratom_engine) as session:
         GRADE_COUNT = session.query(func.max(Grade.id)).first()[0]
-    with Session(engine) as session:
+    with Session(kratom_engine) as session:
         uid = update.message.from_user.id
-        if session.query(User.id).where(User.userid.in_([str(uid)])).first()[0] == None:
+        if session.query(User.id).where(User.userid.in_([str(uid)])).first() == None:
             session.add(User(userid=str(uid)))
             session.commit()
     return CHECK
 
 async def myorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    with Session(engine) as session:
+    with Session(kratom_engine) as session:
         orders = session.query(Orders).where(Orders.user_id.in_([session.query(User.id).where(User.userid == str(update.message.from_user.id)).first()[0]])).join(OrderElements,OrderElements.id == Orders.id,isouter=True)
     await update.message.reply_text(
         f"Це список ваших замовлень:\n",
@@ -111,8 +111,11 @@ async def catalog(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         ],
     ]
+    
     context.user_data["current_grade"] = 1
     context.user_data["current_variety"] = 1
+    context.user_data["order"] = Orders()
+
     await context.bot.send_photo(chat_id=update.effective_chat.id,
         photo=open(f"images/diagram2.jpg", 'rb'),
         caption="У нашому каталозі ти можеш знайти кратом на будь-який смак 🌱",
@@ -191,7 +194,9 @@ async def update_message_button(update: Update, context: ContextTypes.DEFAULT_TY
     with Session(kratom_engine) as session:
         print(session.query(Kratom.id).where(Kratom.grade_id == grade_id).all())
         kratom_id = session.query(Kratom.id).where(Kratom.grade_id == grade_id).all()[context.user_data["current_variety"]-1][0]
+        context.user_data["current_kratom_id"] = kratom_id
         kratom = session.query(Kratom).where(Kratom.id == kratom_id).first()
+        context.user_data["current_kratom_variety"] = kratom.variety
         typecosts = session.query(TypeCost.id).where(TypeCost.grade_id == kratom.grade_id).all()
 
         tmptypecostid = []
@@ -200,7 +205,7 @@ async def update_message_button(update: Update, context: ContextTypes.DEFAULT_TY
 
         costelements = session.query(CostElement).where(CostElement.id.in_(tmptypecostid)).all()
     for costelement in costelements:
-        kel.append([InlineKeyboardButton(f"{costelement.count}\t{costelement.title}\t{costelement.cost}₴", callback_data=f"{str(CHOOSE_KRATOM)}{costelement.id}")])
+        kel.append([InlineKeyboardButton(f"{costelement.count}\t{costelement.title}\t{costelement.cost}₴", callback_data=f"{str(CHOOSE_COST)}{costelement.id}")])
 
     kel.append([
             InlineKeyboardButton("⬅️", callback_data=f"{str(CHOOSE_KRATOM)}Left"),
@@ -237,10 +242,20 @@ async def choose_kratom_check(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update_message_button(update,context)
 
     elif query.data == f"{str(CHOOSE_KRATOM)}Назад":
-        #await context.bot.deleteMessage(message_id=update.effective_message.id,chat_id=update.effective_chat.id)
-        #await catalog(update,context)
         await choose_kratom_grade(update,context)
     
+    await query.answer()
+
+async def choose_cost_check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    current_variety = context.user_data["current_variety"]
+    current_kratom_id = context.user_data["current_kratom_id"]
+
+    context.user_data["order"].orderelements.append(OrderElements(costelement_id=query.data.split(f"{CHOOSE_COST}")[1],kratom_id=current_kratom_id))
+    
+    for order in context.user_data["order"].orderelements:
+        #UPDATE BUTTON
+
     await query.answer()
 
 async def get_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -449,7 +464,8 @@ app.add_handler(ConversationHandler(
                 MessageHandler(filters.Regex(gen_regex(menu_list)),check_menu),
                 CallbackQueryHandler(catalog_type_check, pattern="^"+str(CATALOG_TYPE)+".*$"),
                 CallbackQueryHandler(choose_kratom_check, pattern="^"+str(CHOOSE_KRATOM)+".*$"),
-                CallbackQueryHandler(choose_grade_check, pattern="^"+str(CHOOSE_GRADE)+".*$")
+                CallbackQueryHandler(choose_grade_check, pattern="^"+str(CHOOSE_GRADE)+".*$"),
+                CallbackQueryHandler(choose_cost_check, pattern="^"+str(CHOOSE_COST)+".*$"),
                 ],
             TEA: [MessageHandler(filters.TEXT,choose_tea)],
             VARIETY: [MessageHandler(filters.Regex(gen_regex(variety_dict["UA"])), variety_select)],
