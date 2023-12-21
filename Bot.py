@@ -54,7 +54,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global GRADE_COUNT
     await context.bot.send_message(update.effective_chat.id, 'Вас вітає Kratom Ukraine телеграм бот.👋\nТут ви можете оформити онлайн замовлення або дізнатися детальніше про наш чай 🌱',reply_markup=start_reply_markup)
     context.user_data["ordersid"] = 0
-    context.user_data["current_costelement_id"] = 0
+    context.user_data["current_costelement"] = None
 
     with Session(kratom_engine) as session:
         GRADE_COUNT = session.query(func.max(Grade.id)).first()[0]
@@ -183,15 +183,14 @@ async def choose_grade_check(update: Update, context: ContextTypes.DEFAULT_TYPE)
         with Session(kratom_engine) as session:
             context.user_data["current_variety"] = 1
             context.user_data["variety_count"] = len(session.query(Kratom.id).where(Kratom.grade_id == context.user_data["current_grade"]).all())
+        await update_from_database(update,context)
         await update_message_button(update,context)
 
     await query.answer()
 
-async def update_message_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def update_from_database(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     grade_id = context.user_data["current_grade"]
-    query = update.callback_query
-    kratom = None
-    kel = []
+
     with Session(kratom_engine) as session:
         print(session.query(Kratom.id).where(Kratom.grade_id == grade_id).all())
         kratom_id = session.query(Kratom.id).where(Kratom.grade_id == grade_id).all()[context.user_data["current_variety"]-1][0]
@@ -205,15 +204,25 @@ async def update_message_button(update: Update, context: ContextTypes.DEFAULT_TY
             tmptypecostid.append(typecost[0])
 
         costelements = session.query(CostElement).where(CostElement.id.in_(tmptypecostid)).all()
-    for costelement in costelements:
-        if context.user_data["current_costelement_id"] != str(costelement.id):
-            kel.append([InlineKeyboardButton(f"{costelement.count}\t{costelement.title}\t{costelement.cost}₴", callback_data=f"{str(CHOOSE_COST)}{costelement.id}")])
-        else:
+
+    context.user_data["kratom"] = kratom
+    context.user_data["costelements"] = costelements
+
+
+async def update_message_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    kratom = context.user_data["kratom"]
+    kel = []
+
+    for costelement in context.user_data["costelements"]:
+        if context.user_data["current_costelement"] != None and str(context.user_data["current_costelement"].id) == str(costelement.id):
             kel.append([
                 InlineKeyboardButton("-1",callback_data=f"{str(CHANGE_COUNT)}-1"),
-                InlineKeyboardButton(f"{context.user_data['current_order_count']} Редагувати",callback_data=f"{str(CHANGE_COUNT)}Редагувати"),
+                InlineKeyboardButton(f"{context.user_data['current_costelement'].count} Редагувати",callback_data=f"{str(CHANGE_COUNT)}Редагувати"),
                 InlineKeyboardButton("+1",callback_data=f"{str(CHANGE_COUNT)}+1"),
                 ])
+        else:
+            kel.append([InlineKeyboardButton(f"{costelement.count}\t{costelement.title}\t{costelement.cost}₴", callback_data=f"{str(CHOOSE_COST)}{costelement.id}")])
 
     kel.append([
             InlineKeyboardButton("⬅️", callback_data=f"{str(CHOOSE_KRATOM)}Left"),
@@ -260,19 +269,13 @@ async def choose_cost_check(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     query = update.callback_query
     current_variety = context.user_data["current_variety"]
     current_kratom_id = context.user_data["current_kratom_id"]
-    context.user_data["current_costelement_id"] = query.data.split(f"{CHOOSE_COST}")[1]
+    context.user_data["current_costelement"] = next((x for x in context.user_data["costelements"] if str(x.id) == query.data.split(f"{CHOOSE_COST}")[1]), None)
 
     flag = True
-
-    for x in context.user_data["order"].orderelements:
-         if x.costelement_id == context.user_data["current_costelement_id"]:
-            context.user_data["current_order_count"] = x.count
-            #x.count += 1
-            flag = False
+    context.user_data["current_costelement"].count = str(int(context.user_data["current_costelement"].count) + 1)
 
     if flag:
-        context.user_data["current_order_count"] = 1
-        context.user_data["order"].orderelements.append(OrderElements(costelement_id=context.user_data["current_costelement_id"],kratom_id=current_kratom_id,count=0))
+        context.user_data["order"].orderelements.append(OrderElements(costelement_id=query.data.split(f"{CHOOSE_COST}")[1],kratom_id=current_kratom_id,count=0))
 
     #for order in context.user_data["order"].orderelements:
         #UPDATE BUTTON
@@ -285,17 +288,12 @@ async def change_count_check(update: Update, context: ContextTypes.DEFAULT_TYPE)
     value = query.data.split(f"{CHANGE_COUNT}")[1]
 
     if value == "+1":
-        for x in context.user_data["order"].orderelements:
-         if x.costelement_id == context.user_data["current_costelement_id"]:
-            x.count += 1
-            context.user_data["current_order_count"] = x.count
+        if context.user_data["current_costelement"] != None:
+            context.user_data["current_costelement"].count = str(int(context.user_data["current_costelement"].count) + 1)
 
     elif value == "-1":
-        for x in context.user_data["order"].orderelements:
-         if x.costelement_id == context.user_data["current_costelement_id"]:
-            x.count -= 1
-            context.user_data["current_order_count"] = x.count
-
+       if context.user_data["current_costelement"] != None:
+            context.user_data["current_costelement"].count = str(int(context.user_data["current_costelement"].count) - 1)
     await query.answer()
     await update_message_button(update,context)
 
