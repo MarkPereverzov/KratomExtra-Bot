@@ -211,7 +211,7 @@ async def update_message_button(update: Update, context: ContextTypes.DEFAULT_TY
         else:
             kel.append([
                 InlineKeyboardButton("-1",callback_data=f"{str(CHANGE_COUNT)}-1"),
-                InlineKeyboardButton("Редагувати",callback_data=f"{str(CHANGE_COUNT)}Редагувати"),
+                InlineKeyboardButton(f"{context.user_data['current_order_count']} Редагувати",callback_data=f"{str(CHANGE_COUNT)}Редагувати"),
                 InlineKeyboardButton("+1",callback_data=f"{str(CHANGE_COUNT)}+1"),
                 ])
 
@@ -224,6 +224,8 @@ async def update_message_button(update: Update, context: ContextTypes.DEFAULT_TY
             InlineKeyboardButton("Назад", callback_data=f"{str(CHOOSE_KRATOM)}Назад"),
             InlineKeyboardButton("🛍️Сума", callback_data=f"{str(CHOOSE_KRATOM)}Сума"),
             ])
+    for x in context.user_data["order"].orderelements:
+        print(x)
     await query.edit_message_media( media=InputMediaPhoto(
         media=open(f"images/{kratom.img}", 'rb'),
         caption=f"{kratom.description}"),
@@ -260,7 +262,17 @@ async def choose_cost_check(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     current_kratom_id = context.user_data["current_kratom_id"]
     context.user_data["current_costelement_id"] = query.data.split(f"{CHOOSE_COST}")[1]
 
-    context.user_data["order"].orderelements.append(OrderElements(costelement_id=context.user_data["current_costelement_id"],kratom_id=current_kratom_id))
+    flag = True
+
+    for x in context.user_data["order"].orderelements:
+         if x.costelement_id == context.user_data["current_costelement_id"]:
+            context.user_data["current_order_count"] = x.count
+            #x.count += 1
+            flag = False
+
+    if flag:
+        context.user_data["current_order_count"] = 1
+        context.user_data["order"].orderelements.append(OrderElements(costelement_id=context.user_data["current_costelement_id"],kratom_id=current_kratom_id,count=0))
 
     #for order in context.user_data["order"].orderelements:
         #UPDATE BUTTON
@@ -268,6 +280,24 @@ async def choose_cost_check(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     await query.answer()
     await update_message_button(update,context)
 
+async def change_count_check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    value = query.data.split(f"{CHANGE_COUNT}")[1]
+
+    if value == "+1":
+        for x in context.user_data["order"].orderelements:
+         if x.costelement_id == context.user_data["current_costelement_id"]:
+            x.count += 1
+            context.user_data["current_order_count"] = x.count
+
+    elif value == "-1":
+        for x in context.user_data["order"].orderelements:
+         if x.costelement_id == context.user_data["current_costelement_id"]:
+            x.count -= 1
+            context.user_data["current_order_count"] = x.count
+
+    await query.answer()
+    await update_message_button(update,context)
 
 async def get_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -477,6 +507,7 @@ app.add_handler(ConversationHandler(
                 CallbackQueryHandler(choose_kratom_check, pattern="^"+str(CHOOSE_KRATOM)+".*$"),
                 CallbackQueryHandler(choose_grade_check, pattern="^"+str(CHOOSE_GRADE)+".*$"),
                 CallbackQueryHandler(choose_cost_check, pattern="^"+str(CHOOSE_COST)+".*$"),
+                CallbackQueryHandler(change_count_check, pattern="^"+str(CHANGE_COUNT)+".*$"),
                 ],
             TEA: [MessageHandler(filters.TEXT,choose_tea)],
             VARIETY: [MessageHandler(filters.Regex(gen_regex(variety_dict["UA"])), variety_select)],
