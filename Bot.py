@@ -218,7 +218,7 @@ async def update_message_button(update: Update, context: ContextTypes.DEFAULT_TY
         if context.user_data["current_costelement"] != None and str(context.user_data["current_costelement"].id) == str(costelement.id):
             kel.append([
                 InlineKeyboardButton("-1",callback_data=f"{str(CHANGE_COUNT)}-1"),
-                InlineKeyboardButton(f"{context.user_data['current_costelement'].count} Редагувати",callback_data=f"{str(CHANGE_COUNT)}Редагувати"),
+                InlineKeyboardButton(f"{context.user_data['current_costelement'].count_repeat} Редагувати",callback_data=f"{str(CHANGE_COUNT)}Редагувати"),
                 InlineKeyboardButton("+1",callback_data=f"{str(CHANGE_COUNT)}+1"),
                 ])
         else:
@@ -272,7 +272,7 @@ async def choose_cost_check(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     context.user_data["current_costelement"] = next((x for x in context.user_data["costelements"] if str(x.id) == query.data.split(f"{CHOOSE_COST}")[1]), None)
 
     flag = True
-    context.user_data["current_costelement"].count = str(int(context.user_data["current_costelement"].count) + 1)
+    context.user_data["current_costelement"].count_repeat = context.user_data["current_costelement"].count_repeat + 1
 
     if flag:
         context.user_data["order"].orderelements.append(OrderElements(costelement_id=query.data.split(f"{CHOOSE_COST}")[1],kratom_id=current_kratom_id,count=0))
@@ -289,11 +289,13 @@ async def change_count_check(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     if value == "+1":
         if context.user_data["current_costelement"] != None:
-            context.user_data["current_costelement"].count = str(int(context.user_data["current_costelement"].count) + 1)
+            context.user_data["current_costelement"].count_repeat = context.user_data["current_costelement"].count_repeat + 1
 
     elif value == "-1":
        if context.user_data["current_costelement"] != None:
-            context.user_data["current_costelement"].count = str(int(context.user_data["current_costelement"].count) - 1)
+            context.user_data["current_costelement"].count_repeat = context.user_data["current_costelement"].count_repeat - 1
+            if context.user_data["current_costelement"].count_repeat < 0: context.user_data["current_costelement"].count_repeat = 0
+            
     await query.answer()
     await update_message_button(update,context)
 

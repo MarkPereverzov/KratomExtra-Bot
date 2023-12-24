@@ -56,6 +56,7 @@ class CostElement(Base):
     id: Mapped[int] = mapped_column(primary_key=True,autoincrement=True)
     title: Mapped[str] = mapped_column(String(30))
     count: Mapped[str] = mapped_column(String(30))
+    count_repeat: Mapped[int] = mapped_column()
     cost: Mapped[int] = mapped_column()
 
 class TypeCost(Base):
