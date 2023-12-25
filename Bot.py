@@ -52,7 +52,7 @@ GRADE_COUNT = 0
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global GRADE_COUNT
-    await context.bot.send_message(update.effective_chat.id, 'Вас вітає Kratom Ukraine телеграм бот👋\nТут ви можете оформити онлайн замовлення або дізнатися детальніше про наш чай🌱',reply_markup=start_reply_markup)
+    await context.bot.send_message(update.effective_chat.id, 'Вас вітає *Kratom Ukraine* телеграм бот👋\nТут ви можете оформити онлайн замовлення або дізнатися детальніше про наш чай🌱',parse_mode= 'Markdown', reply_markup=start_reply_markup)
     context.user_data["ordersid"] = 0
     context.user_data["current_costelement"] = None
 
@@ -118,8 +118,8 @@ async def catalog(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["order"] = Orders()
 
     await context.bot.send_photo(chat_id=update.effective_chat.id,
-        photo=open(f"images/diagram2.jpg", 'rb'),
-        caption="Оберіть з нашого різноманітного асортименту, випробуйте наш пробний набір. Обирайте те, що вам більше до вподоби і насолоджуйтеся унікальним досвідом від *KRATOM EXTRA*.",
+        photo=open(f"images/catalog.png", 'rb'),
+        caption="Вітаємо вас в *KRATOM EXTRA!* Ознайомтеся з нашим асортиментом: розсипний, капсули, конфети або випробуйте наш пробний набір. Обирайте те, що вам до вподоби, і насолоджуйтеся унікальним досвідом від *KRATOM EXTRA*.",
         parse_mode= 'Markdown',
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
@@ -273,7 +273,7 @@ async def choose_cost_check(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     context.user_data["current_costelement"] = next((x for x in context.user_data["costelements"] if str(x.id) == query.data.split(f"{CHOOSE_COST}")[1]), None)
 
     flag = True
-    context.user_data["current_costelement"].count_repeat = context.user_data["current_costelement"].count_repeat + 1
+    #context.user_data["current_costelement"].count_repeat = context.user_data["current_costelement"].count_repeat + 1
 
     if flag:
         context.user_data["order"].orderelements.append(OrderElements(costelement_id=query.data.split(f"{CHOOSE_COST}")[1],kratom_id=current_kratom_id,count=0))
