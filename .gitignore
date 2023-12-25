@@ -2,4 +2,3 @@ config.py
 token.py
 bottoken.py
 database_blueprint.xlsx
-migratekratom.py
