@@ -24,7 +24,7 @@ variety_dict = {
 }
 start_reply_markup = ReplyKeyboardMarkup([["📘 Каталог","🛍️ Кошик"],["📜 Мої замовлення","📱 Контакти" ],["❓ FAQ"]],one_time_keyboard=True,input_field_placeholder="Сорт",resize_keyboard=True)
 gramms_list = ["10 г", "25 г", "50 г", "100 г", "1 кг"]
-choose_type_list = ["🌿Розсипний","💊Капсули","💧Концентрат","📦Пробний набір"]
+choose_type_list = ["🌿Розсипний","💊Капсули","🍬Цукерки","📦Пробний набір"]
 menu_list = ["📘 Каталог","🛍️ Кошик","📜 Мої замовлення","📱 Контакти","❓ FAQ"]
 local_or_delivery_list = ["🚶 Самовивіз", "🚚 Доставка"]
 post_type_list= ["Почтомат","Відділення"]
@@ -52,7 +52,7 @@ GRADE_COUNT = 0
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global GRADE_COUNT
-    await context.bot.send_message(update.effective_chat.id, 'Вас вітає Kratom Ukraine телеграм бот.👋\nТут ви можете оформити онлайн замовлення або дізнатися детальніше про наш чай 🌱',reply_markup=start_reply_markup)
+    await context.bot.send_message(update.effective_chat.id, 'Вас вітає Kratom Ukraine телеграм бот👋\nТут ви можете оформити онлайн замовлення або дізнатися детальніше про наш чай🌱',reply_markup=start_reply_markup)
     context.user_data["ordersid"] = 0
     context.user_data["current_costelement"] = None
 
@@ -107,7 +107,7 @@ async def catalog(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("💊Капсули", callback_data=f"{str(CATALOG_TYPE)}Капсули"),
         ],
         [
-            InlineKeyboardButton("💧Концентрат", callback_data=f"{str(CATALOG_TYPE)}Концентрат"),
+            InlineKeyboardButton("🍬Цукерки", callback_data=f"{str(CATALOG_TYPE)}Концентрат"),
             InlineKeyboardButton("📦Пробний набір", callback_data=f"{str(CATALOG_TYPE)}Пробний"),
 
         ],
@@ -119,7 +119,7 @@ async def catalog(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await context.bot.send_photo(chat_id=update.effective_chat.id,
         photo=open(f"images/diagram2.jpg", 'rb'),
-        caption="Вітаємо в магазині *KRATOM EXTRA*, де ми пропонуємо три класи чаїв – *Standard*, *Premium* і *Extra Premium*. Кратом кожного класу вражає своїм унікальним смаком та ефектами.\n\n🌿*STANDARD*\nВідкрийте для себе початковий досвід з нашим стандартним класом чаю. Ці сорти вражають своєю приємною сумішшю та допомагають знайти баланс у повсякденному житті.\n\n🌿*PREMIUM*\nПоглибіть свій вибір і виберіть чай з класу Premium, щоб відчути наступний рівень вишуканості та різноманіття. Вони пропонують ефективність та глибший вплив для тих, хто шукає щось більше.\n\n🌿*EXTRA PREMIUM*\nНайвищий ступінь якості та ефективності – це клас *Extra Premium*. Тут ви знаходите унікальне поєднання всіх переваг чаїв з класів *Standard* та *Premium*. Плюсами є виняткова якість, збалансованість ефектів та неперевершена інтенсивність смаку.\n\nОберіть свій ідеальний клас чаю від *KRATOM EXTRA* та насолоджуйтеся кожним чарівним ковтком. Ви заслуговуєте на найкраще, і ми гарантуємо Вам вишуканість і неперевершеність в кожній чашці.",
+        caption="Оберіть з нашого різноманітного асортименту, випробуйте наш пробний набір. Обирайте те, що вам більше до вподоби і насолоджуйтеся унікальним досвідом від *KRATOM EXTRA*.",
         parse_mode= 'Markdown',
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
@@ -219,7 +219,7 @@ async def update_message_button(update: Update, context: ContextTypes.DEFAULT_TY
         if context.user_data["current_costelement"] != None and str(context.user_data["current_costelement"].id) == str(costelement.id):
             kel.append([
                 InlineKeyboardButton("-1",callback_data=f"{str(CHANGE_COUNT)}-1"),
-                InlineKeyboardButton(f"{context.user_data['current_costelement'].count_repeat} Редагувати",callback_data=f"{str(CHANGE_COUNT)}Редагувати"),
+                InlineKeyboardButton(f"✏️ {context.user_data['current_costelement'].count_repeat} Редагувати",callback_data=f"{str(CHANGE_COUNT)}Редагувати"),
                 InlineKeyboardButton("+1",callback_data=f"{str(CHANGE_COUNT)}+1"),
                 ])
         else:
@@ -302,7 +302,7 @@ async def change_count_check(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 async def get_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "Контакт нашого менеджера:\n ☎️*+380991234567* - Іван\n☎️ *+380991234567* - Некто\n📧 *https://t.me/kratom_ukrainee* - KratomUkraine",
+        "Контакт нашого менеджера:\n☎️*+380991234567* - Іван\n☎️ *+380991234567* - Некто\n📧 *https://t.me/kratom_ukrainee* - KratomUkraine",
         reply_markup=start_reply_markup,
         parse_mode="Markdown"
     )
