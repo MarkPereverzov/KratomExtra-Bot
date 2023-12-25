@@ -252,6 +252,7 @@ async def choose_kratom_check(update: Update, context: ContextTypes.DEFAULT_TYPE
         if current_variety == 0:
             current_variety = variety_count
         context.user_data["current_variety"] = current_variety
+        await update_from_database(update,context)
         await update_message_button(update,context)
 
     elif query.data == f"{str(CHOOSE_KRATOM)}Right":
@@ -259,6 +260,7 @@ async def choose_kratom_check(update: Update, context: ContextTypes.DEFAULT_TYPE
         if current_variety == variety_count+1:
             current_variety = 1
         context.user_data["current_variety"] = current_variety
+        await update_from_database(update,context)
         await update_message_button(update,context)
 
     elif query.data == f"{str(CHOOSE_KRATOM)}Назад":
@@ -273,7 +275,8 @@ async def choose_cost_check(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     context.user_data["current_costelement"] = next((x for x in context.user_data["costelements"] if str(x.id) == query.data.split(f"{CHOOSE_COST}")[1]), None)
 
     flag = True
-    #context.user_data["current_costelement"].count_repeat = context.user_data["current_costelement"].count_repeat + 1
+    if context.user_data["current_costelement"].count_repeat == 0:
+        context.user_data["current_costelement"].count_repeat = context.user_data["current_costelement"].count_repeat + 1
 
     if flag:
         context.user_data["order"].orderelements.append(OrderElements(costelement_id=query.data.split(f"{CHOOSE_COST}")[1],kratom_id=current_kratom_id,count=0))
