@@ -86,6 +86,7 @@ async def assortment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Ви маєте можливість ознайомитися з асортиментом нашого чаю 🌱",
         reply_markup=start_reply_markup,
+        parse_mode= 'Markdown',
     )
     return CHECK
 
@@ -99,6 +100,8 @@ async def check_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await assortment(update,context) 
     elif option == menu_list[3]:
         return await get_help(update,context)
+    elif option == menu_list[4]:
+        return await frequently_asked_questions(update,context)
 
 async def catalog(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
@@ -119,7 +122,7 @@ async def catalog(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await context.bot.send_photo(chat_id=update.effective_chat.id,
         photo=open(f"images/catalog.png", 'rb'),
-        caption="Вітаємо вас в *KRATOM EXTRA!* Ознайомтеся з нашим асортиментом: розсипний, капсули, конфети або випробуйте наш пробний набір. Обирайте те, що вам до вподоби, і насолоджуйтеся унікальним досвідом від *KRATOM EXTRA*.",
+        caption="Вітаємо вас в *KRATOM EXTRA!*\n Ознайомтеся з нашим асортиментом: розсипний, капсули, конфети або випробуйте наш пробний набір.\n Обирайте те, що вам до вподоби, і насолоджуйтеся унікальним досвідом від *KRATOM EXTRA*.",
         parse_mode= 'Markdown',
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
@@ -296,7 +299,7 @@ async def change_count_check(update: Update, context: ContextTypes.DEFAULT_TYPE)
             context.user_data["current_costelement"].count_repeat = context.user_data["current_costelement"].count_repeat + 1
 
     elif value == "-1":
-       if context.user_data["current_costelement"] != None:
+        if context.user_data["current_costelement"] != None:
             context.user_data["current_costelement"].count_repeat = context.user_data["current_costelement"].count_repeat - 1
             if context.user_data["current_costelement"].count_repeat < 0: context.user_data["current_costelement"].count_repeat = 0
             
@@ -306,6 +309,14 @@ async def change_count_check(update: Update, context: ContextTypes.DEFAULT_TYPE)
 async def get_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Контакт нашого менеджера:\n☎️*+380991234567* - Іван\n☎️ *+380991234567* - Некто\n📧 *https://t.me/kratom_ukrainee* - KratomUkraine",
+        reply_markup=start_reply_markup,
+        parse_mode="Markdown"
+    )
+    return CHECK
+
+async def frequently_asked_questions(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Як здійснити своє перше замовлення від нас?\nУ вас є можливість вибрати будь-який продукт з нашого каталогу, розташованого в інтернет-магазині. Просто виберіть сорт, який вам подобається, та вказіть бажану вагу. Оплатити своє замовлення можна, натискавши на 🛍 корзину у вікні замовлення та слідуючи інструкціям. Не забудьте вказати ваш номер телефону для отримання повідомлення із номером ТТН :)\n\nМи рекомендуємо спробувати наші найсмачніші та перевірені часом сорти для вашого першого знайомства з кратомом:\n\n- Green Elephant🐘\n- White Maeng da🌿\n- Red Borneo\n- Yellow Borneo\n\nВиберіть найзручніший варіант доставки:\n🚚 Доставка на відділення Нової Пошти\n🚕 Відправлення за допомогою таксі\n🚶🏻‍♂️ Самовивіз\n\nЯкщо замовлення оформлено до 16:00, ми відправимо його того ж дня 🦎\nМи приймаємо оплату за допомогою наступних варіантів:\n- Передоплата на карту\n- Післяплата на Новій Пошті",
         reply_markup=start_reply_markup,
         parse_mode="Markdown"
     )
