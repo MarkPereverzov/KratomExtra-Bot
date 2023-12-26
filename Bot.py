@@ -7,7 +7,7 @@ import logging
 import time
 from typing import List
 from bottoken import TOKEN
-from classes import User,OrderElements,Orders, Kratom, Grade,TypeCost,CostElement
+from classes import User,OrderElements,Orders, Kratom, Grade,TypeCost,CostElement,CostElementModel
 from sqlalchemy.sql.expression import func
 
 SRC_PATH = "D:\\KratomUkraine-Bot\\"
@@ -55,6 +55,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(update.effective_chat.id, 'Вас вітає *Kratom Ukraine* телеграм бот👋\nТут ви можете оформити онлайн замовлення або дізнатися детальніше про наш чай🌱',parse_mode= 'Markdown', reply_markup=start_reply_markup)
     context.user_data["ordersid"] = 0
     context.user_data["current_costelement"] = None
+    context.user_data["current_orderelement"] = None
 
     with Session(kratom_engine) as session:
         GRADE_COUNT = session.query(func.max(Grade.id)).first()[0]
@@ -118,7 +119,7 @@ async def catalog(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     context.user_data["current_grade"] = 1
     context.user_data["current_variety"] = 1
-    context.user_data["order"] = Orders()
+    context.user_data["order"] = []
 
     await context.bot.send_photo(chat_id=update.effective_chat.id,
         photo=open(f"images/catalog.png", 'rb'),
@@ -213,8 +214,14 @@ async def update_from_database(update: Update, context: ContextTypes.DEFAULT_TYP
         costelements = session.query(CostElement).where(CostElement.id.in_(tmptypecostid)).all()
 
     context.user_data["kratom"] = kratom
-    context.user_data["costelements"] = costelements
 
+    costelementsmodel = []
+    print(costelements)
+    for x in costelements:
+        print("FF")
+        costelementsmodel.append(CostElementModel(id=x.id,title=x.title,count=x.count,count_repeat=x.count_repeat,cost=x.cost,kratom_id=kratom_id))
+
+    context.user_data["costelements"] = costelementsmodel
 
 async def update_message_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
@@ -222,10 +229,10 @@ async def update_message_button(update: Update, context: ContextTypes.DEFAULT_TY
     kel = []
 
     for costelement in context.user_data["costelements"]:
-        if context.user_data["current_costelement"] != None and str(context.user_data["current_costelement"].id) == str(costelement.id):
+        if context.user_data["current_orderelement"] != None and str(context.user_data["current_orderelement"].costelement_id) == str(costelement.id) and context.user_data["current_orderelement"].kratom_id == kratom.id:
             kel.append([
                 InlineKeyboardButton("-1",callback_data=f"{str(CHANGE_COUNT)}-1"),
-                InlineKeyboardButton(f"✏️ {context.user_data['current_costelement'].count_repeat} Редагувати",callback_data=f"{str(CHANGE_COUNT)}Редагувати"),
+                InlineKeyboardButton(f"✏️ {context.user_data['current_orderelement'].count} Редагувати",callback_data=f"{str(CHANGE_COUNT)}Редагувати"),
                 InlineKeyboardButton("+1",callback_data=f"{str(CHANGE_COUNT)}+1"),
                 ])
         else:
@@ -240,7 +247,7 @@ async def update_message_button(update: Update, context: ContextTypes.DEFAULT_TY
             InlineKeyboardButton("Назад", callback_data=f"{str(CHOOSE_KRATOM)}Назад"),
             InlineKeyboardButton("🛍️Сума", callback_data=f"{str(CHOOSE_KRATOM)}Сума"),
             ])
-    for x in context.user_data["order"].orderelements:
+    for x in context.user_data["order"]:
         print(x)
     await query.edit_message_media( media=InputMediaPhoto(
         media=open(f"images/{kratom.img}", 'rb'),
@@ -254,6 +261,8 @@ async def choose_kratom_check(update: Update, context: ContextTypes.DEFAULT_TYPE
     query = update.callback_query
     current_variety = context.user_data["current_variety"]
     variety_count = context.user_data["variety_count"]
+
+    print(context.user_data["costelements"])
 
     if query.data == f"{str(CHOOSE_KRATOM)}Left":
         current_variety -= 1
@@ -280,14 +289,14 @@ async def choose_cost_check(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     query = update.callback_query
     current_variety = context.user_data["current_variety"]
     current_kratom_id = context.user_data["current_kratom_id"]
-    context.user_data["current_costelement"] = next((x for x in context.user_data["costelements"] if str(x.id) == query.data.split(f"{CHOOSE_COST}")[1]), None)
+    context.user_data["current_orderelement"] = next((x for x in context.user_data["order"] if str(x.costelement_id) == query.data.split(f"{CHOOSE_COST}")[1] and x.kratom_id == current_kratom_id), None)
 
-    flag = True
-    if context.user_data["current_costelement"].count_repeat == 0:
-        context.user_data["current_costelement"].count_repeat = context.user_data["current_costelement"].count_repeat + 1
+    if context.user_data["current_orderelement"] == None:
+        context.user_data["current_orderelement"] = OrderElements(costelement_id=query.data.split(f"{CHOOSE_COST}")[1],kratom_id=current_kratom_id,count=0)
+    context.user_data["order"].append(context.user_data["current_orderelement"])
 
-    if flag:
-        context.user_data["order"].orderelements.append(OrderElements(costelement_id=query.data.split(f"{CHOOSE_COST}")[1],kratom_id=current_kratom_id,count=0))
+    if context.user_data["current_orderelement"].count == 0:
+        context.user_data["current_orderelement"].count = context.user_data["current_orderelement"].count + 1
 
     #for order in context.user_data["order"].orderelements:
         #UPDATE BUTTON
@@ -300,13 +309,13 @@ async def change_count_check(update: Update, context: ContextTypes.DEFAULT_TYPE)
     value = query.data.split(f"{CHANGE_COUNT}")[1]
 
     if value == "+1":
-        if context.user_data["current_costelement"] != None:
-            context.user_data["current_costelement"].count_repeat = context.user_data["current_costelement"].count_repeat + 1
+        if context.user_data["current_orderelement"] != None:
+            context.user_data["current_orderelement"].count = context.user_data["current_orderelement"].count + 1
 
     elif value == "-1":
-        if context.user_data["current_costelement"] != None:
-            context.user_data["current_costelement"].count_repeat = context.user_data["current_costelement"].count_repeat - 1
-            if context.user_data["current_costelement"].count_repeat < 0: context.user_data["current_costelement"].count_repeat = 0
+        if context.user_data["current_orderelement"] != None:
+            context.user_data["current_orderelement"].count = context.user_data["current_orderelement"].count- 1
+            if context.user_data["current_orderelement"].count < 0: context.user_data["current_orderelement"].count = 0
             
     await query.answer()
     await update_message_button(update,context)

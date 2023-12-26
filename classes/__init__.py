@@ -56,8 +56,11 @@ class CostElement(Base):
     id: Mapped[int] = mapped_column(primary_key=True,autoincrement=True)
     title: Mapped[str] = mapped_column(String(30))
     count: Mapped[str] = mapped_column(String(30))
-    count_repeat: Mapped[int] = mapped_column()
+    count_repeat: Mapped[int] = mapped_column(default=0)
     cost: Mapped[int] = mapped_column()
+
+class CostElementModel(CostElement):
+    kratom_id: Mapped[int] = 0
 
 class TypeCost(Base):
     __tablename__ = "kratom_typecost"
