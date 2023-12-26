@@ -120,7 +120,7 @@ async def catalog(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_photo(chat_id=update.effective_chat.id,
         photo=open(f"images/catalog.png", 'rb'),
         caption="Вітаємо вас в *KRATOM EXTRA!* Ознайомтеся з нашим асортиментом: розсипний, капсули, конфети або випробуйте наш пробний набір. Обирайте те, що вам до вподоби, і насолоджуйтеся унікальним досвідом від *KRATOM EXTRA*.",
-        parse_mode= 'Markdown',
+        parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -152,9 +152,12 @@ async def choose_kratom_grade(update:Update,context: ContextTypes.DEFAULT_TYPE):
     with Session(kratom_engine) as session:
         grade = session.query(Grade).where(Grade.id == context.user_data["current_grade"]).first()
     print(grade)
-    await query.edit_message_media( media=InputMediaPhoto(
+    await query.edit_message_media( 
+        media=InputMediaPhoto(
         media=open(f"images/{grade.img}", 'rb'),
-        caption=f"{grade.description}"),
+        caption=f"{grade.description}",
+        parse_mode="Markdown",
+        ),
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -238,7 +241,9 @@ async def update_message_button(update: Update, context: ContextTypes.DEFAULT_TY
         print(x)
     await query.edit_message_media( media=InputMediaPhoto(
         media=open(f"images/{kratom.img}", 'rb'),
-        caption=f"{kratom.description}"),
+        caption=f"{kratom.description}",
+        parse_mode="Markdown",
+        ),
         reply_markup=InlineKeyboardMarkup(kel)
     )
 
