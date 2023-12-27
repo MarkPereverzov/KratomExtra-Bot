@@ -57,6 +57,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["current_costelement"] = None
     context.user_data["current_orderelement"] = None
     context.user_data["order"] = []
+    context.user_data["current_sum"] = "Кошик"
 
     with Session(kratom_engine) as session:
         GRADE_COUNT = session.query(func.max(Grade.id)).first()[0]
@@ -245,7 +246,7 @@ async def update_message_button(update: Update, context: ContextTypes.DEFAULT_TY
             ])
     kel.append([
             InlineKeyboardButton("Назад", callback_data=f"{str(CHOOSE_KRATOM)}Назад"),
-            InlineKeyboardButton("🛍️Сума", callback_data=f"{str(CHOOSE_KRATOM)}Сума"),
+            InlineKeyboardButton(f"🛍️{context.user_data['current_sum']}", callback_data=f"{str(CHOOSE_KRATOM)}Сума"),
             ])
     for x in context.user_data["order"]:
         print(x)
@@ -295,6 +296,9 @@ async def choose_cost_check(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     current_kratom_id = context.user_data["current_kratom_id"]
     context.user_data["current_orderelement"] = next((x for x in context.user_data["order"] if str(x.costelement_id) == query.data.split(f"{CHOOSE_COST}")[1] and x.kratom_id == current_kratom_id), None)
 
+    #calculate order cost
+    await generateorderlist(update,context)
+
     if context.user_data["current_orderelement"] == None:
         with Session(kratom_engine) as session:
             costelement = session.query(CostElement).where(CostElement.id == int(query.data.split(f"{CHOOSE_COST}")[1])).first()
@@ -322,7 +326,10 @@ async def change_count_check(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if context.user_data["current_orderelement"] != None:
             context.user_data["current_orderelement"].count = context.user_data["current_orderelement"].count- 1
             if context.user_data["current_orderelement"].count < 0: context.user_data["current_orderelement"].count = 0
-            
+
+    #calculate order cost
+    await generateorderlist(update,context)
+
     await query.answer()
     await update_message_button(update,context)
 
@@ -337,6 +344,7 @@ async def generateorderlist(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         outstr += f"{orderelement.costelement.count} {orderelement.costelement.title}: {orderelement.count} x {orderelement.costelement.cost}₴ = {tmpsum}₴\n"
         outstr += f"{'-'*15}\n"
 
+    context.user_data["current_sum"] = f"{summ}₴"
     outstr += f"\n*Загалом*: {summ}₴"
 
     return outstr
