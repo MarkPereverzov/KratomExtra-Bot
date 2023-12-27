@@ -206,23 +206,17 @@ async def update_from_database(update: Update, context: ContextTypes.DEFAULT_TYP
         kratom_id = session.query(Kratom.id).where(Kratom.grade_id == grade_id).all()[context.user_data["current_variety"]-1][0]
         context.user_data["current_kratom_id"] = kratom_id
         kratom = session.query(Kratom).where(Kratom.id == kratom_id).first()
-        context.user_data["current_kratom"] = kratom
         context.user_data["current_kratom_variety"] = kratom.variety
-        typecost = session.query(TypeCost).where(and_(TypeCost.grade_id == kratom.grade_id,TypeCost.type == context.user_data["type"])).first()
+        typecosts = session.query(TypeCost.id).where(and_(TypeCost.grade_id == kratom.grade_id,TypeCost.type == context.user_data["type"])).all()
 
-        context.user_data["current_typecost"] = typecost
+        tmptypecostid = []
+        for typecost in typecosts:
+            tmptypecostid.append(typecost[0])
 
-        costelements = session.query(CostElement).where(CostElement.id == typecost.id).all()
+        costelements = session.query(CostElement).where(CostElement.id.in_(tmptypecostid)).all()
 
     context.user_data["kratom"] = kratom
-
-    costelementsmodel = []
-    print(costelements)
-    for x in costelements:
-        print("FF")
-        costelementsmodel.append(CostElementModel(id=x.id,title=x.title,count=x.count,count_repeat=x.count_repeat,cost=x.cost,kratom_id=kratom_id))
-
-    context.user_data["costelements"] = costelementsmodel
+    context.user_data["costelements"] = costelements
 
 async def update_message_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
@@ -230,14 +224,14 @@ async def update_message_button(update: Update, context: ContextTypes.DEFAULT_TY
     kel = []
 
     for costelement in context.user_data["costelements"]:
-        if context.user_data["current_orderelement"] != None and str(context.user_data["current_orderelement"].costelement_id) == str(costelement.id) and context.user_data["current_orderelement"].kratom_id == kratom.id:
+        if context.user_data["current_orderelement"] != None and str(context.user_data["current_orderelement"].costelement.id) == str(costelement.id) and context.user_data["current_orderelement"].kratom_id == kratom.id:
             kel.append([
                 InlineKeyboardButton("-1",callback_data=f"{str(CHANGE_COUNT)}-1"),
                 InlineKeyboardButton(f"✏️ {context.user_data['current_orderelement'].count} Редагувати",callback_data=f"{str(CHANGE_COUNT)}Редагувати"),
                 InlineKeyboardButton("+1",callback_data=f"{str(CHANGE_COUNT)}+1"),
                 ])
         else:
-            kel.append([InlineKeyboardButton(f"{costelement.count}\t{costelement.title}\t{costelement.cost}₴", callback_data=f"{str(CHOOSE_COST)}{costelement.id}")])
+            kel.append([InlineKeyboardButton(f"{costelement.count}\t{costelement.title}\t{costelement.cost}₴", callback_data=f"CHOOSE_COST{costelement.id}")])
 
     kel.append([
             InlineKeyboardButton("⬅️", callback_data=f"{str(CHOOSE_KRATOM)}Left"),
@@ -298,8 +292,11 @@ async def choose_cost_check(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     if context.user_data["current_orderelement"] == None:
         with Session(kratom_engine) as session:
-            costelement = session.query(CostElement).where(CostElement.id == int(query.data.split(f"{CHOOSE_COST}")[1])).first()
-        context.user_data["current_orderelement"] = OrderElements(costelement=costelement,costelement_id=query.data.split(f"{CHOOSE_COST}")[1],kratom_id=current_kratom_id,kratom=context.user_data["current_kratom"],count=0,typecost_id=context.user_data["current_typecost"].id,typecost=context.user_data["current_typecost"])
+            print(query.data.split("CHOOSE_COST")[1])
+            print("FFFFFFf")
+            print("FFFFFFf")
+            costelement = session.query(CostElement).where(CostElement.id == int(query.data.split("CHOOSE_COST")[1])).first()
+        context.user_data["current_orderelement"] = OrderElements(costelement=costelement,costelement_id=query.data.split("CHOOSE_COST")[1],kratom_id=current_kratom_id,kratom=context.user_data["kratom"],count=0,type=context.user_data["type"])
     context.user_data["order"].append(context.user_data["current_orderelement"])
 
     if context.user_data["current_orderelement"].count == 0:
@@ -338,7 +335,7 @@ async def generateorderlist(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     summ = 0
     for orderelement in context.user_data["order"]:
         outstr += f"\n{'-'*15}\n"
-        outstr += f"*{orderelement.typecost.type} {orderelement.kratom.variety}*\n"
+        outstr += f"*{orderelement.type} {orderelement.kratom.variety}*\n"
         tmpsum = orderelement.count*orderelement.costelement.cost
         summ += tmpsum
         outstr += f"{orderelement.costelement.count} {orderelement.costelement.title}: {orderelement.count} x {orderelement.costelement.cost}₴ = {tmpsum}₴\n"
@@ -350,6 +347,8 @@ async def generateorderlist(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     return outstr
 
 async def shopingcard(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["current_edit_orderelement"] = 1
+
     if len(context.user_data["order"]) == 0:
         await context.bot.send_message(update.effective_chat.id,
             "Зробіть замовлення, щоб побачити його тут!",
@@ -378,9 +377,70 @@ async def shopingcard_check(update: Update,context: ContextTypes.DEFAULT_TYPE):
         await context.bot.deleteMessage(message_id=update.effective_message.id,chat_id=update.effective_chat.id)
         await shopingcard(update,context)
 
-    #elif query.data == f"{str(SHOPING_CARD)}Редагувати":
-
+    elif query.data == f"{str(SHOPING_CARD)}Редагувати":
+        await shopingcard_edit(update,context)
     await query.answer()   
+
+async def update_edit_button(update: Update,context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    order = context.user_data["order"]
+    orderelement = order[context.user_data['current_edit_orderelement']-1]
+    kratom = orderelement.kratom
+    kel = []
+
+    grouped_costelement = [x for x in context.user_data["order"] if x.kratom_id == kratom.id]
+
+    for orderelementf in grouped_costelement:
+        # if context.user_data["current_orderelement"] != None and str(context.user_data["current_orderelement"].costelement_id) == str(costelement.id) and context.user_data["current_orderelement"].kratom_id == kratom.id:
+        #     kel.append([
+        #         InlineKeyboardButton("-1",callback_data=f"{str(CHANGE_COUNT)}-1"),
+        #         InlineKeyboardButton(f"✏️ {context.user_data['current_orderelement'].count} Редагувати",callback_data=f"{str(CHANGE_COUNT)}Редагувати"),
+        #         InlineKeyboardButton("+1",callback_data=f"{str(CHANGE_COUNT)}+1"),
+        #         ])
+        # else:
+        kel.append([InlineKeyboardButton(f"{orderelementf.costelement.count}\t{orderelementf.costelement.title}\t{orderelementf.costelement.cost}₴", callback_data=f"CHOOSE_COST{orderelementf.id}")])
+
+    kel.append([
+            InlineKeyboardButton("⬅️", callback_data=f"{str(CHOOSE_KRATOM)}Left"),
+            InlineKeyboardButton(f'{context.user_data["current_variety"]}/{context.user_data["variety_count"]}', callback_data=f"{str(CHOOSE_KRATOM)}Count"),
+            InlineKeyboardButton("➡️", callback_data=f"{str(CHOOSE_KRATOM)}Right"),
+            ])
+    kel.append([
+            InlineKeyboardButton("Назад", callback_data=f"{str(CHOOSE_KRATOM)}Назад"),
+            InlineKeyboardButton(f"🛍️{context.user_data['current_sum']}", callback_data=f"{str(CHOOSE_KRATOM)}Сума"),
+            ])
+
+    await context.bot.send_photo(chat_id=update.effective_chat.id,
+        photo=open(f"images/{kratom.img}", 'rb'),
+        caption=f"{orderelement.costelement.count} {orderelement.costelement.title}",
+        parse_mode= 'Markdown',
+        reply_markup=InlineKeyboardMarkup(kel)
+    )
+
+
+async def shopingcard_edit(update: Update,context: ContextTypes.DEFAULT_TYPE):
+    # keyboard = [
+    #         [
+    #             InlineKeyboardButton("✏️Редагувати",callback_data=f"{str(SHOPING_CARD)}Редагувати"),
+    #             InlineKeyboardButton("❌Видалити",callback_data=f"{str(SHOPING_CARD)}Видалити"),
+    #         ],
+    #         [InlineKeyboardButton("✅Оформити замовлення",callback_data=f"{str(SHOPING_CARD)}Оформити")]
+    # ]
+
+    # order = context.user_data["order"]
+    # orderelement = order[context.user_data['current_edit_orderelement']]
+    # kratom = orderelement.kratom
+
+    # await context.bot.send_photo(chat_id=update.effective_chat.id,
+    #     photo=open(f"images/{kratom.img}", 'rb'),
+    #     caption="",
+    #     parse_mode= 'Markdown',
+    #     reply_markup=InlineKeyboardMarkup(keyboard)
+    # )
+
+    await update_edit_button(update,context)
+
+    return CHECK
 
 async def get_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -597,7 +657,7 @@ app.add_handler(ConversationHandler(
                 CallbackQueryHandler(catalog_type_check, pattern="^"+str(CATALOG_TYPE)+".*$"),
                 CallbackQueryHandler(choose_kratom_check, pattern="^"+str(CHOOSE_KRATOM)+".*$"),
                 CallbackQueryHandler(choose_grade_check, pattern="^"+str(CHOOSE_GRADE)+".*$"),
-                CallbackQueryHandler(choose_cost_check, pattern="^"+str(CHOOSE_COST)+".*$"),
+                CallbackQueryHandler(choose_cost_check, pattern="^CHOOSE_COST.*$"),
                 CallbackQueryHandler(change_count_check, pattern="^"+str(CHANGE_COUNT)+".*$"),
                 CallbackQueryHandler(shopingcard_check, pattern="^"+str(SHOPING_CARD)+".*$"),
                 ],
