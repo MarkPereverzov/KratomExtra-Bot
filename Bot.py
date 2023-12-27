@@ -296,9 +296,6 @@ async def choose_cost_check(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     current_kratom_id = context.user_data["current_kratom_id"]
     context.user_data["current_orderelement"] = next((x for x in context.user_data["order"] if str(x.costelement_id) == query.data.split(f"{CHOOSE_COST}")[1] and x.kratom_id == current_kratom_id), None)
 
-    #calculate order cost
-    await generateorderlist(update,context)
-
     if context.user_data["current_orderelement"] == None:
         with Session(kratom_engine) as session:
             costelement = session.query(CostElement).where(CostElement.id == int(query.data.split(f"{CHOOSE_COST}")[1])).first()
@@ -310,6 +307,9 @@ async def choose_cost_check(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     #for order in context.user_data["order"].orderelements:
         #UPDATE BUTTON
+
+    #calculate order cost
+    await generateorderlist(update,context)
 
     await query.answer()
     await update_message_button(update,context)
