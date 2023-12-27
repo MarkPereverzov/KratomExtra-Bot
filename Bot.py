@@ -47,7 +47,7 @@ def gen_regex(list):
 
 LOCALORDELIVERY,ORDER_CORRECT,TEA,HELP,MYORDER,CHECK,TYPE,ORDER,VARIETY, GRAMMS, COUNT,PACKAGE, ASSORTMENT,PERSONAL_INFO,PERSONAL_SURNAME,PERSONAL_PHONE,PERSONAL_CITY,PERSONAL_POST_TYPE,PERSONAL_POST_TYPE_CHOOSE,PERSONAL_INFO_CORRECT,PERSONAL_POST_NUMBER,ASK_UPDATE_PERSONAL,ONE_MORE = range(23)
 
-CATALOG_TYPE, CHOOSE_KRATOM, CHOOSE_GRADE, CHOOSE_COST, CHANGE_COUNT = range(5)
+CATALOG_TYPE, CHOOSE_KRATOM, CHOOSE_GRADE, CHOOSE_COST, CHANGE_COUNT, SHOPING_CARD = range(6)
 GRADE_COUNT = 0
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -56,6 +56,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["ordersid"] = 0
     context.user_data["current_costelement"] = None
     context.user_data["current_orderelement"] = None
+    context.user_data["order"] = []
 
     with Session(kratom_engine) as session:
         GRADE_COUNT = session.query(func.max(Grade.id)).first()[0]
@@ -96,7 +97,8 @@ async def check_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if option == menu_list[0]:
         return await catalog(update,context)
     elif option == menu_list[1]:
-        return await choose_type(update,context)
+        return await shopingcard(update,context)
+        #return await choose_type(update,context)
     elif option == menu_list[2]:
         return await assortment(update,context) 
     elif option == menu_list[3]:
@@ -119,7 +121,6 @@ async def catalog(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     context.user_data["current_grade"] = 1
     context.user_data["current_variety"] = 1
-    context.user_data["order"] = []
 
     await context.bot.send_photo(chat_id=update.effective_chat.id,
         photo=open(f"images/catalog.png", 'rb'),
@@ -204,14 +205,13 @@ async def update_from_database(update: Update, context: ContextTypes.DEFAULT_TYP
         kratom_id = session.query(Kratom.id).where(Kratom.grade_id == grade_id).all()[context.user_data["current_variety"]-1][0]
         context.user_data["current_kratom_id"] = kratom_id
         kratom = session.query(Kratom).where(Kratom.id == kratom_id).first()
+        context.user_data["current_kratom"] = kratom
         context.user_data["current_kratom_variety"] = kratom.variety
-        typecosts = session.query(TypeCost.id).where(TypeCost.grade_id == kratom.grade_id).all()
+        typecost = session.query(TypeCost).where(and_(TypeCost.grade_id == kratom.grade_id,TypeCost.type == context.user_data["type"])).first()
 
-        tmptypecostid = []
-        for typecost in typecosts:
-            tmptypecostid.append(typecost[0])
+        context.user_data["current_typecost"] = typecost
 
-        costelements = session.query(CostElement).where(CostElement.id.in_(tmptypecostid)).all()
+        costelements = session.query(CostElement).where(CostElement.id == typecost.id).all()
 
     context.user_data["kratom"] = kratom
 
@@ -283,6 +283,10 @@ async def choose_kratom_check(update: Update, context: ContextTypes.DEFAULT_TYPE
     elif query.data == f"{str(CHOOSE_KRATOM)}Назад":
         await choose_kratom_grade(update,context)
     
+    elif query.data == f"{str(CHOOSE_KRATOM)}Сума":
+        await context.bot.deleteMessage(message_id=update.effective_message.id,chat_id=update.effective_chat.id)
+        await shopingcard(update,context)
+
     await query.answer()
 
 async def choose_cost_check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -292,7 +296,9 @@ async def choose_cost_check(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     context.user_data["current_orderelement"] = next((x for x in context.user_data["order"] if str(x.costelement_id) == query.data.split(f"{CHOOSE_COST}")[1] and x.kratom_id == current_kratom_id), None)
 
     if context.user_data["current_orderelement"] == None:
-        context.user_data["current_orderelement"] = OrderElements(costelement_id=query.data.split(f"{CHOOSE_COST}")[1],kratom_id=current_kratom_id,count=0)
+        with Session(kratom_engine) as session:
+            costelement = session.query(CostElement).where(CostElement.id == int(query.data.split(f"{CHOOSE_COST}")[1])).first()
+        context.user_data["current_orderelement"] = OrderElements(costelement=costelement,costelement_id=query.data.split(f"{CHOOSE_COST}")[1],kratom_id=current_kratom_id,kratom=context.user_data["current_kratom"],count=0,typecost_id=context.user_data["current_typecost"].id,typecost=context.user_data["current_typecost"])
     context.user_data["order"].append(context.user_data["current_orderelement"])
 
     if context.user_data["current_orderelement"].count == 0:
@@ -319,6 +325,54 @@ async def change_count_check(update: Update, context: ContextTypes.DEFAULT_TYPE)
             
     await query.answer()
     await update_message_button(update,context)
+
+async def generateorderlist(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+    outstr = "*Кошик*\n"
+    summ = 0
+    for orderelement in context.user_data["order"]:
+        outstr += f"\n{'-'*15}\n"
+        outstr += f"*{orderelement.typecost.type} {orderelement.kratom.variety}*\n"
+        tmpsum = orderelement.count*orderelement.costelement.cost
+        summ += tmpsum
+        outstr += f"{orderelement.costelement.count} {orderelement.costelement.title}: {orderelement.count} x {orderelement.costelement.cost}₴ = {tmpsum}₴\n"
+        outstr += f"{'-'*15}\n"
+
+    outstr += f"\n*Загалом*: {summ}₴"
+
+    return outstr
+
+async def shopingcard(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if len(context.user_data["order"]) == 0:
+        await context.bot.send_message(update.effective_chat.id,
+            "Зробіть замовлення, щоб побачити його тут!",
+            reply_markup=start_reply_markup,
+            parse_mode="Markdown"
+        )
+    else:
+        keyboard = [
+            [
+                InlineKeyboardButton("✏️Редагувати",callback_data=f"{str(SHOPING_CARD)}Редагувати"),
+                InlineKeyboardButton("❌Видалити",callback_data=f"{str(SHOPING_CARD)}Видалити"),
+            ],
+            [InlineKeyboardButton("✅Оформити замовлення",callback_data=f"{str(SHOPING_CARD)}Оформити")]
+        ]
+        await context.bot.send_message(update.effective_chat.id,f"{await generateorderlist(update,context)}",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown",
+        )
+        return CHECK
+
+async def shopingcard_check(update: Update,context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+
+    if query.data == f"{str(SHOPING_CARD)}Видалити":
+        context.user_data["order"] = []
+        await context.bot.deleteMessage(message_id=update.effective_message.id,chat_id=update.effective_chat.id)
+        await shopingcard(update,context)
+
+    #elif query.data == f"{str(SHOPING_CARD)}Редагувати":
+
+    await query.answer()   
 
 async def get_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -537,6 +591,7 @@ app.add_handler(ConversationHandler(
                 CallbackQueryHandler(choose_grade_check, pattern="^"+str(CHOOSE_GRADE)+".*$"),
                 CallbackQueryHandler(choose_cost_check, pattern="^"+str(CHOOSE_COST)+".*$"),
                 CallbackQueryHandler(change_count_check, pattern="^"+str(CHANGE_COUNT)+".*$"),
+                CallbackQueryHandler(shopingcard_check, pattern="^"+str(SHOPING_CARD)+".*$"),
                 ],
             TEA: [MessageHandler(filters.TEXT,choose_tea)],
             VARIETY: [MessageHandler(filters.Regex(gen_regex(variety_dict["UA"])), variety_select)],

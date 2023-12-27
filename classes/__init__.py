@@ -88,6 +88,8 @@ class OrderElements(Base):
     id: Mapped[int] = mapped_column(primary_key=True,autoincrement=True)
     costelement_id: Mapped[int] = mapped_column(ForeignKey(CostElement.id))
     costelement: Mapped["CostElement"] =  relationship()
+    typecost_id: Mapped[int] = mapped_column(ForeignKey(TypeCost.id))
+    typecost: Mapped["TypeCost"] =  relationship()
     kratom_id: Mapped[int] = mapped_column(ForeignKey(Kratom.id))
     kratom: Mapped["Kratom"] =  relationship()
     order_id: Mapped[int] = mapped_column(ForeignKey("Orders.id"))
