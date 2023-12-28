@@ -124,7 +124,7 @@ async def catalog(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["current_variety"] = 1
 
     await context.bot.send_photo(chat_id=update.effective_chat.id,
-        photo=open(f"images/catalog.png", 'rb'),
+        photo=open(f"images/logo.png", 'rb'),
         caption="Вітаємо вас в *KRATOM EXTRA!*\n\nОзнайомтеся з нашим асортиментом: розсипний, капсули, конфети або випробуйте наш пробний набір. Обирайте те, що вам до вподоби, і насолоджуйтеся унікальним досвідом від *KRATOM EXTRA*.",
         parse_mode= 'Markdown',
         reply_markup=InlineKeyboardMarkup(keyboard)
