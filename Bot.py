@@ -109,6 +109,8 @@ async def check_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await frequently_asked_questions(update,context)
 
 async def catalog(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["flag_edit"] = False
+
     keyboard = [
         [
             InlineKeyboardButton("🌿Розсипний", callback_data=f"{str(CATALOG_TYPE)}Розсипний"),
