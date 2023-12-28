@@ -288,13 +288,10 @@ async def choose_cost_check(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     query = update.callback_query
     current_variety = context.user_data["current_variety"]
     current_kratom_id = context.user_data["current_kratom_id"]
-    context.user_data["current_orderelement"] = next((x for x in context.user_data["order"] if str(x.costelement_id) == query.data.split(f"{CHOOSE_COST}")[1] and x.kratom_id == current_kratom_id), None)
+    context.user_data["current_orderelement"] = next((x for x in context.user_data["order"] if str(x.costelement_id) == query.data.split(f"CHOOSE_COST")[1] and x.kratom_id == current_kratom_id), None)
 
     if context.user_data["current_orderelement"] == None:
         with Session(kratom_engine) as session:
-            print(query.data.split("CHOOSE_COST")[1])
-            print("FFFFFFf")
-            print("FFFFFFf")
             costelement = session.query(CostElement).where(CostElement.id == int(query.data.split("CHOOSE_COST")[1])).first()
         context.user_data["current_orderelement"] = OrderElements(costelement=costelement,costelement_id=query.data.split("CHOOSE_COST")[1],kratom_id=current_kratom_id,kratom=context.user_data["kratom"],count=0,type=context.user_data["type"])
     context.user_data["order"].append(context.user_data["current_orderelement"])
@@ -331,14 +328,24 @@ async def change_count_check(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await update_message_button(update,context)
 
 async def generateorderlist(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+    grouped_order = []
+    for i in range(0,3):
+        grouped_orderelement = [x for x in context.user_data["order"] if x.kratom_id == i]
+        if len(grouped_orderelement) != 0:
+            grouped_order.append(grouped_orderelement)
+
     outstr = "*Кошик*\n"
     summ = 0
-    for orderelement in context.user_data["order"]:
+    #for orderelement in context.user_data["order"]:
+    print(grouped_order)
+    for order in grouped_order:
         outstr += f"\n{'-'*15}\n"
-        outstr += f"*{orderelement.type} {orderelement.kratom.variety}*\n"
-        tmpsum = orderelement.count*orderelement.costelement.cost
-        summ += tmpsum
-        outstr += f"{orderelement.costelement.count} {orderelement.costelement.title}: {orderelement.count} x {orderelement.costelement.cost}₴ = {tmpsum}₴\n"
+        outstr += f"*{order[0].type} {order[0].kratom.variety}*\n"
+        for orderelement in order:
+            tmpsum = orderelement.count*orderelement.costelement.cost
+            summ += tmpsum
+            outstr += f"{orderelement.costelement.count} {orderelement.costelement.title}: {orderelement.count} x {orderelement.costelement.cost}₴ = {tmpsum}₴\n"
+
         outstr += f"{'-'*15}\n"
 
     context.user_data["current_sum"] = f"{summ}₴"
@@ -410,9 +417,14 @@ async def update_edit_button(update: Update,context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton(f"🛍️{context.user_data['current_sum']}", callback_data=f"{str(CHOOSE_KRATOM)}Сума"),
             ])
 
+    caption_gen = f"*{orderelement.type} {kratom.variety}*\n"
+    
+    for x in grouped_costelement:
+        caption_gen += f"\n{x.costelement.count} {x.costelement.title}: {x.count} {x.type} x {x.costelement.cost}₴ = {x.costelement.cost*x.count}₴"
+
     await context.bot.send_photo(chat_id=update.effective_chat.id,
         photo=open(f"images/{kratom.img}", 'rb'),
-        caption=f"{orderelement.costelement.count} {orderelement.costelement.title}",
+        caption=f"{caption_gen}",
         parse_mode= 'Markdown',
         reply_markup=InlineKeyboardMarkup(kel)
     )
