@@ -332,8 +332,21 @@ async def change_count_check(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 async def generateorderlist(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     grouped_order = []
-    for i in range(0,3):
+    known_kratom_id = []
+
+    for h in context.user_data["order"]:
+        kid_flag = True
+        for kid in known_kratom_id:
+            if kid == h.kratom_id:
+                kid_flag = False
+        if kid_flag:
+            known_kratom_id.append(h.kratom_id)
+    
+    for i in known_kratom_id:
+        for j in grouped_order:
+            next((x for x in j if j.kratom_id), None)
         grouped_orderelement = [x for x in context.user_data["order"] if x.kratom_id == i]
+        add_flag = True
         if len(grouped_orderelement) != 0:
             grouped_order.append(grouped_orderelement)
 
