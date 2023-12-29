@@ -94,10 +94,21 @@ class OrderElements(Base):
     order_id: Mapped[int] = mapped_column(ForeignKey("Orders.id"))
     orders: Mapped["Orders"] = relationship(back_populates="orderelements")
     count: Mapped[int] = mapped_column()
+
+    costorderelement: Mapped[List["CostOrderElement"]] = relationship(back_populates="orderelement")
     
     def __repr__(self) -> str:
         return f"{self.count}"
     #    return f"*Тип упаковки:* {self.type}\n*Сорт:* {self.tea}\n*Вага упаковки:* {self.weight}\n*Кількість упаковок:* {self.amount}\n*Номер замовлення:* {self.order_id}"
+
+class CostOrderElement(Base):
+    __tablename__ = "CostOrderElements"
+
+    id: Mapped[int] = mapped_column(primary_key=True,autoincrement=True)
+    costelement_id: Mapped[int] = mapped_column(ForeignKey(CostElement.id))
+    costelement: Mapped["CostElement"] =  relationship()
+    orderelement_id: Mapped[int] = mapped_column(ForeignKey(OrderElements.id))
+    orderelement: Mapped["OrderElements"] =  relationship(back_populates="costorderelement")
     
 
     

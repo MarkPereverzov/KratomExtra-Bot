@@ -7,7 +7,7 @@ import logging
 import time
 from typing import List
 from bottoken import TOKEN
-from classes import User,OrderElements,Orders, Kratom, Grade,TypeCost,CostElement,CostElementModel
+from classes import User,OrderElements,Orders, Kratom, Grade,TypeCost,CostElement,CostElementModel, CostOrderElement
 from sqlalchemy.sql.expression import func
 
 SRC_PATH = "D:\\KratomUkraine-Bot\\"
@@ -296,8 +296,16 @@ async def choose_cost_check(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     if context.user_data["current_orderelement"] == None:
         with Session(kratom_engine) as session:
             costelement = session.query(CostElement).where(CostElement.id == int(query.data.split("CHOOSE_COST")[1])).first()
-        context.user_data["current_orderelement"] = OrderElements(costelement=costelement,costelement_id=query.data.split("CHOOSE_COST")[1],kratom_id=current_kratom_id,kratom=context.user_data["kratom"],count=0,type=context.user_data["type"])
-    context.user_data["order"].append(context.user_data["current_orderelement"])
+            flag = True
+            for x in context.user_data["order"]:
+                if x.kratom_id == costelement.kratom_id:
+                    x.costorderelement.append(CostOrderElement(costelement=x.costelement,costelement_id=x.costelement_id,orderelement=x,orderelement_id=x.id))                
+                    flag = False
+            if flag:
+                oes = OrderElements(costorderelement=[],costelement_id=query.data.split("CHOOSE_COST")[1],kratom_id=current_kratom_id,kratom=context.user_data["kratom"],count=0,type=context.user_data["type"])
+                oes.costorderelement.append(CostOrderElement(costelement=costelement,costelement_id=costelement.id,orderelement=oes,orderelement_id=oes.id))
+                context.user_data["order"].append(oes)
+                context.user_data["current_orderelement"] = oes
 
     if context.user_data["current_orderelement"].count == 0:
         context.user_data["current_orderelement"].count = context.user_data["current_orderelement"].count + 1
@@ -331,38 +339,38 @@ async def change_count_check(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await update_message_button(update,context)
 
 async def generateorderlist(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-    grouped_order = []
+    grouped_order = context.user_data["order"]
     known_kratom_id = []
 
-    for h in context.user_data["order"]:
-        kid_flag = True
-        for kid in known_kratom_id:
-            if kid == h.kratom_id:
-                kid_flag = False
-        if kid_flag:
-            known_kratom_id.append(h.kratom_id)
+    # for h in context.user_data["order"]:
+    #     kid_flag = True
+    #     for kid in known_kratom_id:
+    #         if kid == h.kratom_id:
+    #             kid_flag = False
+    #     if kid_flag:
+    #         known_kratom_id.append(h.kratom_id)
     
-    for i in known_kratom_id:
-        for j in grouped_order:
-            next((x for x in j if j.kratom_id), None)
-        grouped_orderelement = [x for x in context.user_data["order"] if x.kratom_id == i]
-        add_flag = True
-        if len(grouped_orderelement) != 0:
-            grouped_order.append(grouped_orderelement)
+    # for i in known_kratom_id:
+    #     for j in grouped_order:
+    #         next((x for x in j if j.kratom_id), None)
+    #     grouped_orderelement = [x for x in context.user_data["order"] if x.kratom_id == i]
+    #     add_flag = True
+    #     if len(grouped_orderelement) != 0:
+    #         grouped_order.append(grouped_orderelement)
 
     context.user_data["grouped_order"] = grouped_order
 
     outstr = "*Кошик*\n"
     summ = 0
     #for orderelement in context.user_data["order"]:
-    print(grouped_order)
+    #print(grouped_order)
     for order in grouped_order:
         outstr += f"\n{'-'*15}\n"
-        outstr += f"*{order[0].type} {order[0].kratom.variety}*\n"
-        for orderelement in order:
-            tmpsum = orderelement.count*orderelement.costelement.cost
+        outstr += f"*{order.type} {order.kratom.variety}*\n"
+        for orderelement in order.costorderelement:
+            tmpsum = int(orderelement.costelement.count)*int(orderelement.costelement.cost)
             summ += tmpsum
-            outstr += f"{orderelement.costelement.count} {orderelement.costelement.title}: {orderelement.count} x {orderelement.costelement.cost}₴ = {tmpsum}₴\n"
+            outstr += f"{orderelement.costelement.count} {orderelement.costelement.title}: {orderelement.costelement.count} x {orderelement.costelement.cost}₴ = {tmpsum}₴\n"
 
         outstr += f"{'-'*15}\n"
 
