@@ -109,6 +109,7 @@ class CostOrderElement(Base):
     costelement: Mapped["CostElement"] =  relationship()
     orderelement_id: Mapped[int] = mapped_column(ForeignKey(OrderElements.id))
     orderelement: Mapped["OrderElements"] =  relationship(back_populates="costorderelement")
+    count: Mapped[int] = mapped_column(nullable=True)
     
 
     

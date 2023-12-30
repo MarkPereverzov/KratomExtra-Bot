@@ -227,11 +227,19 @@ async def update_message_button(update: Update, context: ContextTypes.DEFAULT_TY
     kel = []
 
     for costelement in context.user_data["costelements"]:
-        if context.user_data["current_orderelement"] != None and str(context.user_data["current_orderelement"].costelement.id) == str(costelement.id) and context.user_data["current_orderelement"].kratom_id == kratom.id:
+        flag = False
+        if context.user_data["current_orderelement"] != None:
+            for costorderelement in context.user_data["current_orderelement"].costorderelement:
+                if str(costorderelement.costelement.id) == str(costelement.id) and context.user_data["current_orderelement"].kratom_id == kratom.id:
+                    flag = True
+                    context.user_data["current_costorderelement"] = costorderelement
+        if flag:
+            print("SUKAAAAAAAAa")
+            print(context.user_data["current_costorderelement"].count)
             kel.append([
-                InlineKeyboardButton("-1",callback_data=f"{str(CHANGE_COUNT)}-1"),
-                InlineKeyboardButton(f"✏️ {context.user_data['current_orderelement'].count} Редагувати",callback_data=f"{str(CHANGE_COUNT)}Редагувати"),
-                InlineKeyboardButton("+1",callback_data=f"{str(CHANGE_COUNT)}+1"),
+                InlineKeyboardButton("-1",callback_data=f"CHANGE_COUNT-1CHANGE_COUNT{costelement.id}"),
+                InlineKeyboardButton(f"✏️ {context.user_data['current_costorderelement'].count} Редагувати",callback_data=f"CHANGE_COUNTРедагувати"),
+                InlineKeyboardButton("+1",callback_data=f"CHANGE_COUNT+1CHANGE_COUNT{costelement.id}"),
                 ])
         else:
             kel.append([InlineKeyboardButton(f"{costelement.count}\t{costelement.title}\t{costelement.cost}₴", callback_data=f"CHOOSE_COST{costelement.id}")])
@@ -298,17 +306,22 @@ async def choose_cost_check(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             costelement = session.query(CostElement).where(CostElement.id == int(query.data.split("CHOOSE_COST")[1])).first()
             flag = True
             for x in context.user_data["order"]:
-                if x.kratom_id == costelement.kratom_id:
-                    x.costorderelement.append(CostOrderElement(costelement=x.costelement,costelement_id=x.costelement_id,orderelement=x,orderelement_id=x.id))                
-                    flag = False
+                if x.kratom_id == current_kratom_id:
+                    if x.costelement_id != costelement.id:
+                        x.costorderelement.append(CostOrderElement(costelement=costelement,costelement_id=costelement.id,orderelement=x,orderelement_id=x.id,count=0))                
+                        flag = False
+                        context.user_data["current_orderelement"] = x
+                        break
             if flag:
                 oes = OrderElements(costorderelement=[],costelement_id=query.data.split("CHOOSE_COST")[1],kratom_id=current_kratom_id,kratom=context.user_data["kratom"],count=0,type=context.user_data["type"])
-                oes.costorderelement.append(CostOrderElement(costelement=costelement,costelement_id=costelement.id,orderelement=oes,orderelement_id=oes.id))
+                oes.costorderelement.append(CostOrderElement(costelement=costelement,costelement_id=costelement.id,orderelement=oes,orderelement_id=oes.id,count=0))
                 context.user_data["order"].append(oes)
                 context.user_data["current_orderelement"] = oes
 
-    if context.user_data["current_orderelement"].count == 0:
-        context.user_data["current_orderelement"].count = context.user_data["current_orderelement"].count + 1
+    if context.user_data["current_orderelement"] != None:
+            for x in context.user_data["current_orderelement"].costorderelement:
+                if x.count == 0:
+                    x.count += 1
 
     #for order in context.user_data["order"].orderelements:
         #UPDATE BUTTON
@@ -321,16 +334,22 @@ async def choose_cost_check(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 async def change_count_check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
-    value = query.data.split(f"{CHANGE_COUNT}")[1]
+    value = query.data.split("CHANGE_COUNT")[1]
+
+    costelement_id = int(query.data.split("CHANGE_COUNT")[2])
 
     if value == "+1":
         if context.user_data["current_orderelement"] != None:
-            context.user_data["current_orderelement"].count = context.user_data["current_orderelement"].count + 1
+            for x in context.user_data["current_orderelement"].costorderelement:
+                if x.costelement.id == costelement_id:
+                    x.count += 1
 
     elif value == "-1":
         if context.user_data["current_orderelement"] != None:
-            context.user_data["current_orderelement"].count = context.user_data["current_orderelement"].count- 1
-            if context.user_data["current_orderelement"].count < 0: context.user_data["current_orderelement"].count = 0
+            for x in context.user_data["current_orderelement"].costorderelement:
+                if x.costelement.id == costelement_id:
+                    x.count -= 1
+                if x.count < 0: x.count = 0
 
     #calculate order cost
     await generateorderlist(update,context)
@@ -358,19 +377,21 @@ async def generateorderlist(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     #     if len(grouped_orderelement) != 0:
     #         grouped_order.append(grouped_orderelement)
 
-    context.user_data["grouped_order"] = grouped_order
+    #//context.user_data["grouped_order"] = grouped_order
 
     outstr = "*Кошик*\n"
     summ = 0
     #for orderelement in context.user_data["order"]:
     #print(grouped_order)
+    print("FFF")
+    print(grouped_order)
     for order in grouped_order:
         outstr += f"\n{'-'*15}\n"
         outstr += f"*{order.type} {order.kratom.variety}*\n"
         for orderelement in order.costorderelement:
             tmpsum = int(orderelement.costelement.count)*int(orderelement.costelement.cost)
             summ += tmpsum
-            outstr += f"{orderelement.costelement.count} {orderelement.costelement.title}: {orderelement.costelement.count} x {orderelement.costelement.cost}₴ = {tmpsum}₴\n"
+            outstr += f"{orderelement.costelement.count} {orderelement.costelement.title}: {order.count} x {orderelement.costelement.cost}₴ = {tmpsum}₴\n"
 
         outstr += f"{'-'*15}\n"
 
@@ -730,7 +751,7 @@ app.add_handler(ConversationHandler(
                 CallbackQueryHandler(choose_kratom_check, pattern="^"+str(CHOOSE_KRATOM)+".*$"),
                 CallbackQueryHandler(choose_grade_check, pattern="^"+str(CHOOSE_GRADE)+".*$"),
                 CallbackQueryHandler(choose_cost_check, pattern="^CHOOSE_COST.*$"),
-                CallbackQueryHandler(change_count_check, pattern="^"+str(CHANGE_COUNT)+".*$"),
+                CallbackQueryHandler(change_count_check, pattern="^CHANGE_COUNT.*$"),
                 CallbackQueryHandler(shopingcard_check, pattern="^"+str(SHOPING_CARD)+".*$"),
                 CallbackQueryHandler(check_update_edit, pattern="^"+str(CHOOSE_EDIT_KRATOM)+".*$"),
                 ],
