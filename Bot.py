@@ -160,7 +160,6 @@ async def choose_kratom_grade(update:Update,context: ContextTypes.DEFAULT_TYPE):
     grade = None
     with Session(kratom_engine) as session:
         grade = session.query(Grade).where(Grade.id == context.user_data["current_grade"]).first()
-    print(grade)
     await query.edit_message_media( 
         media=InputMediaPhoto(
         media=open(f"images/{grade.img}", 'rb'),
@@ -205,7 +204,6 @@ async def update_from_database(update: Update, context: ContextTypes.DEFAULT_TYP
     grade_id = context.user_data["current_grade"]
 
     with Session(kratom_engine) as session:
-        print(session.query(Kratom.id).where(Kratom.grade_id == grade_id).all())
         kratom_id = session.query(Kratom.id).where(Kratom.grade_id == grade_id).all()[context.user_data["current_variety"]-1][0]
         context.user_data["current_kratom_id"] = kratom_id
         kratom = session.query(Kratom).where(Kratom.id == kratom_id).first()
@@ -234,8 +232,6 @@ async def update_message_button(update: Update, context: ContextTypes.DEFAULT_TY
                     flag = True
                     context.user_data["current_costorderelement"] = costorderelement
         if flag:
-            print("SUKAAAAAAAAa")
-            print(context.user_data["current_costorderelement"].count)
             kel.append([
                 InlineKeyboardButton("-1",callback_data=f"CHANGE_COUNT-1CHANGE_COUNT{costelement.id}"),
                 InlineKeyboardButton(f"✏️ {context.user_data['current_costorderelement'].count} Редагувати",callback_data=f"CHANGE_COUNTРедагувати"),
@@ -253,8 +249,6 @@ async def update_message_button(update: Update, context: ContextTypes.DEFAULT_TY
             InlineKeyboardButton("Назад", callback_data=f"{str(CHOOSE_KRATOM)}Назад"),
             InlineKeyboardButton(f"🛍️{context.user_data['current_sum']}", callback_data=f"{str(CHOOSE_KRATOM)}Сума"),
             ])
-    for x in context.user_data["order"]:
-        print(x)
     await query.edit_message_media( media=InputMediaPhoto(
         media=open(f"images/{kratom.img}", 'rb'),
         caption=f"{kratom.description}",
@@ -267,8 +261,6 @@ async def choose_kratom_check(update: Update, context: ContextTypes.DEFAULT_TYPE
     query = update.callback_query
     current_variety = context.user_data["current_variety"]
     variety_count = context.user_data["variety_count"]
-
-    print(context.user_data["costelements"])
 
     if query.data == f"{str(CHOOSE_KRATOM)}Left":
         current_variety -= 1
@@ -299,29 +291,28 @@ async def choose_cost_check(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     query = update.callback_query
     current_variety = context.user_data["current_variety"]
     current_kratom_id = context.user_data["current_kratom_id"]
-    context.user_data["current_orderelement"] = next((x for x in context.user_data["order"] if str(x.costelement_id) == query.data.split(f"CHOOSE_COST")[1] and x.kratom_id == current_kratom_id), None)
-
-    if context.user_data["current_orderelement"] == None:
+    context.user_data["current_orderelement"] = next((x for x in context.user_data["order"] if x.kratom_id == current_kratom_id ), None)
+    
+    if context.user_data["current_orderelement"] != None:
+        costorderelement_current = None
+        for y in context.user_data["current_orderelement"].costorderelement:
+            if y.costelement_id == int(query.data.split("CHOOSE_COST")[1]):
+                costorderelement_current = y
+                break
+        if costorderelement_current != None:
+            costorderelement_current.count += 1
+        else:
+            with Session(kratom_engine) as session:
+                tmp_costelement = session.query(CostElement).where(CostElement.id == int(query.data.split("CHOOSE_COST")[1])).first()
+            costorderelement_current = CostOrderElement(costelement_id = tmp_costelement.id, costelement = tmp_costelement,orderelement_id = context.user_data["current_orderelement"].id,orderelement = context.user_data["current_orderelement"],count=1)
+    else:
+        oes = OrderElements(costorderelement=[],costelement_id=int(query.data.split("CHOOSE_COST")[1]),kratom_id=current_kratom_id,kratom=context.user_data["kratom"],count=1,type=context.user_data["type"])
         with Session(kratom_engine) as session:
             costelement = session.query(CostElement).where(CostElement.id == int(query.data.split("CHOOSE_COST")[1])).first()
-            flag = True
-            for x in context.user_data["order"]:
-                if x.kratom_id == current_kratom_id:
-                    if x.costelement_id != costelement.id:
-                        x.costorderelement.append(CostOrderElement(costelement=costelement,costelement_id=costelement.id,orderelement=x,orderelement_id=x.id,count=0))                
-                        flag = False
-                        context.user_data["current_orderelement"] = x
-                        break
-            if flag:
-                oes = OrderElements(costorderelement=[],costelement_id=query.data.split("CHOOSE_COST")[1],kratom_id=current_kratom_id,kratom=context.user_data["kratom"],count=0,type=context.user_data["type"])
-                oes.costorderelement.append(CostOrderElement(costelement=costelement,costelement_id=costelement.id,orderelement=oes,orderelement_id=oes.id,count=0))
-                context.user_data["order"].append(oes)
-                context.user_data["current_orderelement"] = oes
+            oes.costorderelement = [CostOrderElement(costelement=costelement,costelement_id=costelement.id,orderelement=oes,orderelement_id=oes.id,count=1)]
 
-    if context.user_data["current_orderelement"] != None:
-            for x in context.user_data["current_orderelement"].costorderelement:
-                if x.count == 0:
-                    x.count += 1
+        context.user_data["current_orderelement"] = oes
+        context.user_data["order"].append(context.user_data["current_orderelement"])
 
     #for order in context.user_data["order"].orderelements:
         #UPDATE BUTTON
@@ -383,13 +374,15 @@ async def generateorderlist(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     summ = 0
     #for orderelement in context.user_data["order"]:
     #print(grouped_order)
-    print("FFF")
-    print(grouped_order)
+
+    for x in context.user_data["order"][0].costorderelement:
+        print(f"{x.costelement.cost}\t{x.costelement.count}\t{x.count}")
+
     for order in grouped_order:
         outstr += f"\n{'-'*15}\n"
         outstr += f"*{order.type} {order.kratom.variety}*\n"
         for orderelement in order.costorderelement:
-            tmpsum = int(orderelement.costelement.count)*int(orderelement.costelement.cost)
+            tmpsum = int(orderelement.count)*int(orderelement.costelement.cost)
             summ += tmpsum
             outstr += f"{orderelement.costelement.count} {orderelement.costelement.title}: {order.count} x {orderelement.costelement.cost}₴ = {tmpsum}₴\n"
 
