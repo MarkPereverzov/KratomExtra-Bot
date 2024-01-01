@@ -384,7 +384,7 @@ async def generateorderlist(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         for orderelement in order.costorderelement:
             tmpsum = int(orderelement.count)*int(orderelement.costelement.cost)
             summ += tmpsum
-            outstr += f"{orderelement.costelement.count} {orderelement.costelement.title}: {order.count} x {orderelement.costelement.cost}₴ = {tmpsum}₴\n"
+            outstr += f"{orderelement.costelement.count} {orderelement.costelement.title}: {orderelement.count} x {orderelement.costelement.cost}₴ = {tmpsum}₴\n"
 
         outstr += f"{'-'*15}\n"
 
