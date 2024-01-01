@@ -227,10 +227,11 @@ async def update_message_button(update: Update, context: ContextTypes.DEFAULT_TY
     for costelement in context.user_data["costelements"]:
         flag = False
         if context.user_data["current_orderelement"] != None:
-            for costorderelement in context.user_data["current_orderelement"].costorderelement:
-                if str(costorderelement.costelement.id) == str(costelement.id) and context.user_data["current_orderelement"].kratom_id == kratom.id:
-                    flag = True
-                    context.user_data["current_costorderelement"] = costorderelement
+            if context.user_data["current_costelement_id"] == int(costelement.id) and context.user_data["current_orderelement"].kratom_id == kratom.id:
+                flag = True
+                for x in context.user_data["current_orderelement"].costorderelement:
+                    if context.user_data["current_costelement_id"] == x.costelement_id:
+                        context.user_data['current_costorderelement'] = x
         if flag:
             kel.append([
                 InlineKeyboardButton("-1",callback_data=f"CHANGE_COUNT-1CHANGE_COUNT{costelement.id}"),
@@ -294,6 +295,7 @@ async def choose_cost_check(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     context.user_data["current_orderelement"] = next((x for x in context.user_data["order"] if x.kratom_id == current_kratom_id ), None)
     
     if context.user_data["current_orderelement"] != None:
+        context.user_data["current_costelement_id"] = int(query.data.split("CHOOSE_COST")[1])
         costorderelement_current = None
         for y in context.user_data["current_orderelement"].costorderelement:
             if y.costelement_id == int(query.data.split("CHOOSE_COST")[1]):
@@ -311,6 +313,7 @@ async def choose_cost_check(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             costelement = session.query(CostElement).where(CostElement.id == int(query.data.split("CHOOSE_COST")[1])).first()
             oes.costorderelement = [CostOrderElement(costelement=costelement,costelement_id=costelement.id,orderelement=oes,orderelement_id=oes.id,count=1)]
 
+        context.user_data["current_costelement_id"] = costelement.id
         context.user_data["current_orderelement"] = oes
         context.user_data["order"].append(context.user_data["current_orderelement"])
 
@@ -379,14 +382,15 @@ async def generateorderlist(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         print(f"{x.costelement.cost}\t{x.costelement.count}\t{x.count}")
 
     for order in grouped_order:
-        outstr += f"\n{'-'*15}\n"
-        outstr += f"*{order.type} {order.kratom.variety}*\n"
+        name_variety_str = f"*{order.type} {order.kratom.variety}*\n"
+        outstr += f"\n{'-'*int(len(name_variety_str)*1.5)}\n"
+        outstr += name_variety_str
         for orderelement in order.costorderelement:
             tmpsum = int(orderelement.count)*int(orderelement.costelement.cost)
             summ += tmpsum
             outstr += f"{orderelement.costelement.count} {orderelement.costelement.title}: {orderelement.count} x {orderelement.costelement.cost}₴ = {tmpsum}₴\n"
 
-        outstr += f"{'-'*15}\n"
+        outstr += f"{'-'*int(len(name_variety_str)*1.5)}\n"
 
     context.user_data["current_sum"] = f"{summ}₴"
     outstr += f"\n*Загалом*: {summ}₴"
