@@ -72,18 +72,27 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def myorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
     with Session(kratom_engine) as session:
-        orders = session.query(Orders).where(Orders.user_id.in_([session.query(User.id).where(User.userid == str(update.message.from_user.id)).first()[0]])).join(OrderElements,OrderElements.id == Orders.id,isouter=True)
+        orders = session.query(Orders).where(Orders.user_id.in_([session.query(User.id).where(User.userid == str(update.message.from_user.id)).first()[0]]))
+        orders.join(OrderElements,OrderElements.id == Orders.id,isouter=True)
+        orders.join(CostOrderElement,CostOrderElement.orderelement_id == OrderElements.id,isouter=True)
+        orders.join(Kratom,Kratom.id == OrderElements.kratom_id,isouter=True)
+        orders.join(CostElement,CostOrderElement.costelement_id == CostElement.id,isouter=True)
+        
     await update.message.reply_text(
         f"Це список ваших замовлень:\n",
         reply_markup=start_reply_markup)
     
+    for t in orders:
+        print("POINT",t.user)
+
     tmpstr = ""
     for t in orders:
-        tmpstr += f"{t.__repr__()}\n\n"
-        for oe in t.orderelements:
-            tmpstr += f"{oe.__repr__()}\n\n"
-        await update.message.reply_text(tmpstr,parse_mode="Markdown")
-        tmpstr = ""
+        if len(t.orderelements) > 0:
+            tmpstr += f"{t.__repr__()}\n"
+            for oe in t.orderelements:
+                tmpstr += f"{oe.__repr__()}\n\n"
+            await update.message.reply_text(tmpstr,parse_mode="Markdown")
+            tmpstr = ""
 
     return CHECK
 
@@ -103,7 +112,8 @@ async def check_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await shopingcard(update,context)
         #return await choose_type(update,context)
     elif option == menu_list[2]:
-        return await assortment(update,context) 
+        #return await assortment(update,context) 
+        return await myorder(update,context)
     elif option == menu_list[3]:
         return await get_help(update,context)
     elif option == menu_list[4]:
@@ -238,7 +248,7 @@ async def update_message_button(update: Update, context: ContextTypes.DEFAULT_TY
         if flag:
             kel.append([
                 InlineKeyboardButton("-1",callback_data=f"CHANGE_COUNT-1CHANGE_COUNT{costelement.id}"),
-                InlineKeyboardButton(f"✏️ {context.user_data['current_costorderelement'].count} Редагувати",callback_data=f"CHANGE_COUNTРедагувати"),
+                InlineKeyboardButton(f"✏️ {context.user_data['current_costorderelement'].count} Редагувати",callback_data=f"CHANGE_COUNTРедагуватиCHANGE_COUNT{costelement.id}"),
                 InlineKeyboardButton("+1",callback_data=f"CHANGE_COUNT+1CHANGE_COUNT{costelement.id}"),
                 ])
         else:
@@ -311,7 +321,7 @@ async def choose_cost_check(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                 tmp_costelement = session.query(CostElement).where(CostElement.id == int(query.data.split("CHOOSE_COST")[1])).first()
             costorderelement_current = CostOrderElement(costelement_id = tmp_costelement.id, costelement = tmp_costelement,orderelement_id = context.user_data["current_orderelement"].id,orderelement = context.user_data["current_orderelement"],count=1)
     else:
-        oes = OrderElements(costorderelement=[],costelement_id=int(query.data.split("CHOOSE_COST")[1]),kratom_id=current_kratom_id,kratom=context.user_data["kratom"],count=1,type=context.user_data["type"])
+        oes = OrderElements(costorderelement=[],kratom_id=current_kratom_id,kratom=context.user_data["kratom"],type=context.user_data["type"])
         with Session(kratom_engine) as session:
             costelement = session.query(CostElement).where(CostElement.id == int(query.data.split("CHOOSE_COST")[1])).first()
             oes.costorderelement = [CostOrderElement(costelement=costelement,costelement_id=costelement.id,orderelement=oes,orderelement_id=oes.id,count=1)]
@@ -593,88 +603,6 @@ async def frequently_asked_questions(update: Update, context: ContextTypes.DEFAU
         parse_mode="Markdown"
     )
     return CHECK
-
-async def choose_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    reply_markup = ReplyKeyboardMarkup([["Розсипний","Капсули"],["Концентрат","Пробний набір"]],one_time_keyboard=True,resize_keyboard=True)
-    await context.bot.send_message(update.effective_chat.id, '📦 Оберіть зручну форму пакування',reply_markup=reply_markup)
-    return TEA
-
-async def choose_tea(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    type = update.message.text
-    context.user_data["type"] = type
-    logger.info("%s TYPE", type)
-    options_matrix = [
-        ["Maeng da Білий", "Maeng da Зелений"],
-        ["Maeng da Червоний", "Тайський зелений"],
-        ["Борнео червоний", "Білий Слон"],
-        ["Шива", "White Honey"],
-        ["Богиня Калі", "Golden Dragon"],
-    ]
-    reply_markup = ReplyKeyboardMarkup(options_matrix,one_time_keyboard=True,input_field_placeholder="Сорт",resize_keyboard=True)
-    await context.bot.send_message(chat_id=update.effective_chat.id,text='Оберіть сорт',reply_markup=reply_markup)
-    return VARIETY
-
-async def variety_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    options_matrix = [["10 г","25 г"],["50 г","100 г"],["1 кг"]]
-    reply_markup = ReplyKeyboardMarkup(options_matrix,one_time_keyboard=True,resize_keyboard=True)
-    user = update.message.from_user
-    variety = update.message.text
-    context.user_data["variety"] = variety
-    logger.info("%s selected variety : %s", user.first_name, variety)
-    await update.message.reply_text(
-        "⚖︎ Оберіть вагу упаковки",
-        reply_markup=reply_markup,
-    )
-    return GRAMMS
-
-async def gramms_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.message.from_user
-    gramms = update.message.text
-    context.user_data["gramms"] = gramms
-    logger.info("%s selected %s gramms", user.first_name, gramms)
-    await update.message.reply_text(
-        "Вкажіть кількість упаковок",
-        reply_markup=ReplyKeyboardRemove(),
-    )
-    return PACKAGE
-    
-async def package_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    reply_markup = ReplyKeyboardMarkup([["Так","Ні"]],one_time_keyboard=True,resize_keyboard=True)
-    package = update.message.text
-    context.user_data["package"] = package
-    user = update.message.from_user
-    logger.info("%s selected %s package", user.first_name, package)
-    await update.message.reply_text(
-        "Форма: "+context.user_data["type"] + "\n"+
-        "Сорт: "+context.user_data["variety"] + "\n"+
-        "Вага: "+context.user_data["gramms"] + "\n"+
-        "Кількість упаковок: "+context.user_data["package"] + "\n"+
-        "Все вказано вірно ?",
-        reply_markup=reply_markup,
-    )
-    return ORDER_CORRECT
-
-async def is_oreder_correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    reply_markup = ReplyKeyboardMarkup([["Так","Ні"]],one_time_keyboard=True,resize_keyboard=True)
-    if update.message.text == "Так":
-        with Session(kratom_engine) as session:
-            if context.user_data["ordersid"] == 0:
-                uid = session.query(User.id).where(User.userid.in_([str(update.message.from_user.id)])).first()[0]
-                times = int(time.time())
-                tmp = Orders(time = times,user_id=uid)
-                session.add(tmp)
-                session.commit()
-                context.user_data["ordersid"] = session.query(Orders.id).where(Orders.time.in_([times])).first()[0]
-
-            tmpoe = OrderElements(tea=context.user_data["variety"],weight=context.user_data["gramms"],amount=context.user_data["package"],type=context.user_data["type"],order_id=context.user_data["ordersid"])
-            
-            session.add_all([tmpoe])
-            session.commit()
-
-        await update.message.reply_text("Бажаєте додати ще один сорт ?", reply_markup=reply_markup)
-        return ONE_MORE
-    else:
-        return await choose_type(update,context) 
     
 async def one_more_ask(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id,text="📦 Оберіть зручний для вас вид доставки\n\n🚶 Самовивіз\nВи маєте можливість особисто забрати замовлення у зручний для Вас час у проміжок часу (11:00 - 18:00).\n\n🚚 Доставка поштою\nВаше замовлення буде надіслано протягом робочого дня за тарифами Нової Пошти.",
@@ -687,6 +615,7 @@ async def local_or_delivery(update: Update,context: ContextTypes.DEFAULT_TYPE):
     reply_markup = ReplyKeyboardMarkup([["Так","Ні"]],one_time_keyboard=True,resize_keyboard=True)
     lod = update.message.text
     if(lod == local_or_delivery_list[0]):
+        await save_order_to_db(context,1)
         return await local(update,context)
     else:
         with Session(kratom_engine) as session:
@@ -697,6 +626,20 @@ async def local_or_delivery(update: Update,context: ContextTypes.DEFAULT_TYPE):
             return ASK_UPDATE_PERSONAL
         else:
             return await personal_info_name(update,context)
+
+async def save_order_to_db(context,user_id):
+    with Session(kratom_engine) as session:
+        order = Orders(user_id=user_id)
+        session.add(order)
+        session.commit()
+        session.refresh(order)
+        for x in context.user_data["order"]:
+            x.order_id = order.id
+            session.add(x)
+            session.commit()
+            for y in x.costorderelement:
+                session.add(y)
+                session.commit()
 
 async def ask_update_personal(update: Update,context: ContextTypes.DEFAULT_TYPE):
     if update.message.text == "Так":
@@ -798,11 +741,11 @@ app.add_handler(ConversationHandler(
                 CallbackQueryHandler(choose_cost_edit_check, pattern="^CHOOSE_EDIT_COST.*$"),
                 CallbackQueryHandler(change_count_edit_check, pattern="^CHANGE_EDIT_COUNT.*$"),
                 ],
-            TEA: [MessageHandler(filters.TEXT,choose_tea)],
-            VARIETY: [MessageHandler(filters.Regex(gen_regex(variety_dict["UA"])), variety_select)],
-            GRAMMS: [MessageHandler(filters.Regex(gen_regex(gramms_list)), gramms_select)],
-            PACKAGE: [MessageHandler(filters.Regex("^[0-9]+$"),package_select)],
-            ORDER_CORRECT:[MessageHandler(filters.Regex(gen_regex(["Так","Ні"])),is_oreder_correct)],
+            # TEA: [MessageHandler(filters.TEXT,choose_tea)],
+            # VARIETY: [MessageHandler(filters.Regex(gen_regex(variety_dict["UA"])), variety_select)],
+            # GRAMMS: [MessageHandler(filters.Regex(gen_regex(gramms_list)), gramms_select)],
+            # PACKAGE: [MessageHandler(filters.Regex("^[0-9]+$"),package_select)],
+            # ORDER_CORRECT:[MessageHandler(filters.Regex(gen_regex(["Так","Ні"])),is_oreder_correct)],
             LOCALORDELIVERY:[MessageHandler(filters.Regex(gen_regex(local_or_delivery_list)),local_or_delivery)],
             PERSONAL_INFO:[MessageHandler(filters.TEXT,personal_info_name)],
             PERSONAL_SURNAME:[MessageHandler(filters.TEXT,personal_info_surname)],
