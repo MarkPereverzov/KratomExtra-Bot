@@ -383,14 +383,14 @@ async def generateorderlist(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     for order in grouped_order:
         name_variety_str = f"*{order.type} {order.kratom.variety}*\n"
-        outstr += f"\n{'-'*int(len(name_variety_str)*1.5)}\n"
+        outstr += f"\n{'-'*int(len(name_variety_str)*1.5+0.45)}\n"
         outstr += name_variety_str
         for orderelement in order.costorderelement:
             tmpsum = int(orderelement.count)*int(orderelement.costelement.cost)
             summ += tmpsum
             outstr += f"{orderelement.costelement.count} {orderelement.costelement.title}: {orderelement.count} x {orderelement.costelement.cost}₴ = {tmpsum}₴\n"
 
-        outstr += f"{'-'*int(len(name_variety_str)*1.5)}\n"
+        outstr += f"{'-'*int(len(name_variety_str)*1.5+0.45)}\n"
 
     context.user_data["current_sum"] = f"{summ}₴"
     outstr += f"\n*Загалом*: {summ}₴"
@@ -398,7 +398,9 @@ async def generateorderlist(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     return outstr
 
 async def shopingcard(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['current_orderelement'] = None
     context.user_data["current_edit_orderelement"] = 1
+    context.user_data["current_costelement_id"] = -1
 
     if len(context.user_data["order"]) == 0:
         await context.bot.send_message(update.effective_chat.id,
@@ -436,35 +438,33 @@ async def update_edit_button(update: Update,context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     order = context.user_data["order"]
     orderelement = order[context.user_data['current_edit_orderelement']-1]
+    context.user_data["current_orderelement"] = orderelement
     kratom = orderelement.kratom
     kel = []
 
-    grouped_costelement = [x for x in context.user_data["order"] if x.kratom_id == kratom.id]
-
-    for orderelementf in grouped_costelement:
-        # if context.user_data["current_orderelement"] != None and str(context.user_data["current_orderelement"].costelement_id) == str(costelement.id) and context.user_data["current_orderelement"].kratom_id == kratom.id:
-        #     kel.append([
-        #         InlineKeyboardButton("-1",callback_data=f"{str(CHANGE_COUNT)}-1"),
-        #         InlineKeyboardButton(f"✏️ {context.user_data['current_orderelement'].count} Редагувати",callback_data=f"{str(CHANGE_COUNT)}Редагувати"),
-        #         InlineKeyboardButton("+1",callback_data=f"{str(CHANGE_COUNT)}+1"),
-        #         ])
-        # else:
-        kel.append([InlineKeyboardButton(f"✏️ {orderelementf.count} {orderelementf.type} | {orderelementf.costelement.cost}₴\t{orderelementf.costelement.count}\t{orderelementf.costelement.title}", callback_data=f"CHOOSE_COST{orderelementf.id}")])
-
-    kel.append([
-                InlineKeyboardButton("⬅️", callback_data=f"{str(CHOOSE_EDIT_KRATOM)}Left"),
-                InlineKeyboardButton(f'{context.user_data["current_edit_orderelement"]}/{len(context.user_data["grouped_order"])}', callback_data=f"{str(CHOOSE_EDIT_KRATOM)}Count"),
-                InlineKeyboardButton("➡️", callback_data=f"{str(CHOOSE_EDIT_KRATOM)}Right"),
-            ])
-    kel.append([
-                InlineKeyboardButton(f"✅Завершити редагування", callback_data=f"{str(CHOOSE_EDIT_KRATOM)}Сума"),
-            ])
-
     caption_gen = f"*{orderelement.type} {kratom.variety}*\n"
-    
-    for x in grouped_costelement:
-        caption_gen += f"\n{x.costelement.count} {x.costelement.title}: {x.count} {x.type} x {x.costelement.cost}₴ = {x.costelement.cost*x.count}₴"
 
+    for x in orderelement.costorderelement:
+        if x.costelement.id == context.user_data["current_costelement_id"]:
+            kel.append([
+                InlineKeyboardButton("-1",callback_data=f"CHANGE_EDIT_COUNT-1CHANGE_EDIT_COUNT{x.costelement.id}"),
+                InlineKeyboardButton(f"✏️ {x.count} Редагувати",callback_data=f"CHANGE_EDIT_COUNTРедагувати"),
+                InlineKeyboardButton("+1",callback_data=f"CHANGE_EDIT_COUNT+1CHANGE_EDIT_COUNT{x.costelement.id}"),
+                ])
+        else:
+            kel.append([InlineKeyboardButton(f"✏️ {x.count} {orderelement.type} | {x.costelement.cost}₴\t{x.costelement.count}\t{x.costelement.title}", callback_data=f"CHOOSE_EDIT_COST{x.costelement.id}")])
+
+        caption_gen += f"\n{x.costelement.count} {x.costelement.title}: {x.count} {orderelement.type} x {x.costelement.cost}₴ = {x.costelement.cost*x.count}₴"
+
+    kel.append([
+            InlineKeyboardButton("⬅️", callback_data=f"{str(CHOOSE_EDIT_KRATOM)}Left"),
+            InlineKeyboardButton(f'{context.user_data["current_edit_orderelement"]}/{len(order)}', callback_data=f"{str(CHOOSE_EDIT_KRATOM)}Count"),
+            InlineKeyboardButton("➡️", callback_data=f"{str(CHOOSE_EDIT_KRATOM)}Right"),
+        ])
+    kel.append([
+            InlineKeyboardButton(f"✅Завершити редагування", callback_data=f"{str(CHOOSE_EDIT_KRATOM)}Сума"),
+        ])
+        
     if context.user_data["flag_edit"]:
         await query.edit_message_media(media=InputMediaPhoto(
             media=open(f"images/{kratom.img}", 'rb'),
@@ -481,6 +481,34 @@ async def update_edit_button(update: Update,context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup(kel)
         )
 
+async def choose_cost_edit_check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    context.user_data["current_costelement_id"] = int(update.callback_query.data.split("CHOOSE_EDIT_COST")[1])
+
+    await update.callback_query.answer()
+    await update_edit_button(update,context)
+
+async def change_count_edit_check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    value = query.data.split("CHANGE_EDIT_COUNT")[1]
+
+    costelement_id = int(query.data.split("CHANGE_EDIT_COUNT")[2])
+
+    if value == "+1":
+        if context.user_data["current_orderelement"] != None:
+            for x in context.user_data["current_orderelement"].costorderelement:
+                if x.costelement.id == costelement_id:
+                    x.count += 1
+
+    elif value == "-1":
+        if context.user_data["current_orderelement"] != None:
+            for x in context.user_data["current_orderelement"].costorderelement:
+                if x.costelement.id == costelement_id:
+                    x.count -= 1
+                if x.count < 0: x.count = 0
+
+    await query.answer()
+    await update_edit_button(update,context)
+
 async def check_update_edit(update:Update,context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     current_edit_orderelement = context.user_data['current_edit_orderelement']
@@ -488,15 +516,17 @@ async def check_update_edit(update:Update,context: ContextTypes.DEFAULT_TYPE):
     if query.data == f"{str(CHOOSE_EDIT_KRATOM)}Left":
         current_edit_orderelement -= 1
         if current_edit_orderelement == 0:
-            current_edit_orderelement = len(context.user_data["grouped_order"])
+            current_edit_orderelement = len(context.user_data["order"])
         context.user_data['current_edit_orderelement'] = current_edit_orderelement
+        context.user_data["current_costelement_id"] = -1
         await shopingcard_edit(update,context)
 
     elif query.data == f"{str(CHOOSE_EDIT_KRATOM)}Right":
         current_edit_orderelement += 1
-        if current_edit_orderelement == len(context.user_data["grouped_order"])+1:
+        if current_edit_orderelement == len(context.user_data["order"])+1:
             current_edit_orderelement = 1
         context.user_data['current_edit_orderelement'] = current_edit_orderelement
+        context.user_data["current_costelement_id"] = -1
         await shopingcard_edit(update,context)
         
     # elif query.data == f"{str(CHOOSE_GRADE)}Обрати":
@@ -751,6 +781,8 @@ app.add_handler(ConversationHandler(
                 CallbackQueryHandler(change_count_check, pattern="^CHANGE_COUNT.*$"),
                 CallbackQueryHandler(shopingcard_check, pattern="^"+str(SHOPING_CARD)+".*$"),
                 CallbackQueryHandler(check_update_edit, pattern="^"+str(CHOOSE_EDIT_KRATOM)+".*$"),
+                CallbackQueryHandler(choose_cost_edit_check, pattern="^CHOOSE_EDIT_COST.*$"),
+                CallbackQueryHandler(change_count_edit_check, pattern="^CHANGE_EDIT_COUNT.*$"),
                 ],
             TEA: [MessageHandler(filters.TEXT,choose_tea)],
             VARIETY: [MessageHandler(filters.Regex(gen_regex(variety_dict["UA"])), variety_select)],
