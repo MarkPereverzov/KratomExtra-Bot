@@ -434,6 +434,8 @@ async def shopingcard(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def shopingcard_check(update: Update,context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
 
+    await query.answer() 
+
     if query.data == f"{str(SHOPING_CARD)}Видалити":
         context.user_data["order"] = []
         await context.bot.deleteMessage(message_id=update.effective_message.id,chat_id=update.effective_chat.id)
@@ -441,7 +443,9 @@ async def shopingcard_check(update: Update,context: ContextTypes.DEFAULT_TYPE):
 
     elif query.data == f"{str(SHOPING_CARD)}Редагувати":
         await shopingcard_edit(update,context)
-    await query.answer()   
+
+    elif query.data == f"{str(SHOPING_CARD)}Оформити":
+        return await one_more_ask(update,context)
 
 async def update_edit_button(update: Update,context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -653,7 +657,7 @@ async def package_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def is_oreder_correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = ReplyKeyboardMarkup([["Так","Ні"]],one_time_keyboard=True,resize_keyboard=True)
     if update.message.text == "Так":
-        with Session(engine) as session:
+        with Session(kratom_engine) as session:
             if context.user_data["ordersid"] == 0:
                 uid = session.query(User.id).where(User.userid.in_([str(update.message.from_user.id)])).first()[0]
                 times = int(time.time())
@@ -673,13 +677,11 @@ async def is_oreder_correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await choose_type(update,context) 
     
 async def one_more_ask(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.text == "Так":
-        return await choose_type(update,context)
-    else:
-        await update.message.reply_text("📦 Оберіть зручний для вас вид доставки\n\n🚶 Самовивіз\nВи маєте можливість особисто забрати замовлення у зручний для Вас час у проміжок часу (11:00 - 18:00).\n\n🚚 Доставка поштою\nВаше замовлення буде надіслано протягом робочого дня за тарифами Нової Пошти.",
-            reply_markup=ReplyKeyboardMarkup([local_or_delivery_list],one_time_keyboard=True,input_field_placeholder="",resize_keyboard=True)
-        )
-        return LOCALORDELIVERY
+    await context.bot.send_message(chat_id=update.effective_chat.id,text="📦 Оберіть зручний для вас вид доставки\n\n🚶 Самовивіз\nВи маєте можливість особисто забрати замовлення у зручний для Вас час у проміжок часу (11:00 - 18:00).\n\n🚚 Доставка поштою\nВаше замовлення буде надіслано протягом робочого дня за тарифами Нової Пошти.",
+        reply_markup=ReplyKeyboardMarkup([local_or_delivery_list],one_time_keyboard=True,input_field_placeholder="",resize_keyboard=True)
+    )
+    await context.bot.deleteMessage(message_id=update.effective_message.id,chat_id=update.effective_chat.id)
+    return LOCALORDELIVERY
     
 async def local_or_delivery(update: Update,context: ContextTypes.DEFAULT_TYPE):
     reply_markup = ReplyKeyboardMarkup([["Так","Ні"]],one_time_keyboard=True,resize_keyboard=True)
@@ -687,7 +689,7 @@ async def local_or_delivery(update: Update,context: ContextTypes.DEFAULT_TYPE):
     if(lod == local_or_delivery_list[0]):
         return await local(update,context)
     else:
-        with Session(engine) as session:
+        with Session(kratom_engine) as session:
             user = session.query(User).where(User.userid.in_([str(update.message.from_user.id)])).first()
         if user.name != None:
             await update.message.reply_text(f"{user}")
@@ -760,7 +762,7 @@ async def personal_info_post_number(update: Update,context: ContextTypes.DEFAULT
 
 async def is_personal_info_correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.text == "Так":
-        with Session(engine) as session:
+        with Session(kratom_engine) as session:
             user = session.query(User).where(User.userid.in_([str(update.message.from_user.id)])).first()
             user.name = context.user_data["name"]
             user.surname = context.user_data["surname"]
