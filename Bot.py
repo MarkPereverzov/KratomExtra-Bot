@@ -59,6 +59,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["order"] = []
     context.user_data["current_sum"] = "Кошик"
     context.user_data["flag_edit"] = False
+    context.user_data["message_shopingcard"] = None
 
     with Session(kratom_engine) as session:
         GRADE_COUNT = session.query(func.max(Grade.id)).first()[0]
@@ -110,6 +111,8 @@ async def check_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def catalog(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["flag_edit"] = False
+    context.user_data["message_shopingcard"] = None
+
 
     keyboard = [
         [
@@ -416,10 +419,16 @@ async def shopingcard(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ],
             [InlineKeyboardButton("✅Оформити замовлення",callback_data=f"{str(SHOPING_CARD)}Оформити")]
         ]
-        await context.bot.send_message(update.effective_chat.id,f"{await generateorderlist(update,context)}",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="Markdown",
-        )
+        if context.user_data["message_shopingcard"] == None:
+            context.user_data["message_shopingcard"] = await context.bot.send_message(update.effective_chat.id,f"{await generateorderlist(update,context)}",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown",
+            )
+        else:
+            await context.bot.edit_message_text(chat_id=update.effective_chat.id,message_id=context.user_data["message_shopingcard"].message_id,text=f"{await generateorderlist(update,context)}",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown",
+            )
         return CHECK
 
 async def shopingcard_check(update: Update,context: ContextTypes.DEFAULT_TYPE):
@@ -528,6 +537,10 @@ async def check_update_edit(update:Update,context: ContextTypes.DEFAULT_TYPE):
         context.user_data['current_edit_orderelement'] = current_edit_orderelement
         context.user_data["current_costelement_id"] = -1
         await shopingcard_edit(update,context)
+    
+    elif query.data == f"{str(CHOOSE_EDIT_KRATOM)}Сума":
+        await context.bot.deleteMessage(message_id=update.effective_message.id,chat_id=update.effective_chat.id)
+        await shopingcard(update,context)
         
     # elif query.data == f"{str(CHOOSE_GRADE)}Обрати":
     #     with Session(kratom_engine) as session:
@@ -557,7 +570,6 @@ async def shopingcard_edit(update: Update,context: ContextTypes.DEFAULT_TYPE):
     #     parse_mode= 'Markdown',
     #     reply_markup=InlineKeyboardMarkup(keyboard)
     # )
-
     await update_edit_button(update,context)
 
     return CHECK
