@@ -50,9 +50,7 @@ LOCALORDELIVERY,ORDER_CORRECT,TEA,HELP,MYORDER,CHECK,TYPE,ORDER,VARIETY, GRAMMS,
 CATALOG_TYPE, CHOOSE_KRATOM, CHOOSE_GRADE, CHOOSE_COST, CHANGE_COUNT, SHOPING_CARD, CHOOSE_EDIT_KRATOM = range(7)
 GRADE_COUNT = 0
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global GRADE_COUNT
-    await context.bot.send_message(update.effective_chat.id, 'Вас вітає *Kratom Ukraine* телеграм бот👋\nТут ви можете оформити онлайн замовлення або дізнатися детальніше про наш чай🌱',parse_mode= 'Markdown', reply_markup=start_reply_markup)
+async def reset(update,context):
     context.user_data["ordersid"] = 0
     context.user_data["current_costelement"] = None
     context.user_data["current_orderelement"] = None
@@ -60,6 +58,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["current_sum"] = "Кошик"
     context.user_data["flag_edit"] = False
     context.user_data["message_shopingcard"] = None
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global GRADE_COUNT
+    await context.bot.send_message(update.effective_chat.id, 'Вас вітає *Kratom Ukraine* телеграм бот👋\nТут ви можете оформити онлайн замовлення або дізнатися детальніше про наш чай🌱',parse_mode= 'Markdown', reply_markup=start_reply_markup)
+    await reset(update,context)
 
     with Session(kratom_engine) as session:
         GRADE_COUNT = session.query(func.max(Grade.id)).first()[0]
@@ -78,12 +81,13 @@ async def myorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
         orders.join(Kratom,Kratom.id == OrderElements.kratom_id,isouter=True)
         orders.join(CostElement,CostOrderElement.costelement_id == CostElement.id,isouter=True)
         
-    await update.message.reply_text(
-        f"Це список ваших замовлень:\n",
-        reply_markup=start_reply_markup)
-    
+    exstflag = False
     for t in orders:
-        print("POINT",t.user)
+        exstflag = True
+
+    await update.message.reply_text(
+        f"{'Це список ваших замовлень:' if exstflag else 'У вас ще не було замовлень'}\n",
+        reply_markup=start_reply_markup)
 
     tmpstr = ""
     for t in orders:
@@ -615,7 +619,7 @@ async def local_or_delivery(update: Update,context: ContextTypes.DEFAULT_TYPE):
     reply_markup = ReplyKeyboardMarkup([["Так","Ні"]],one_time_keyboard=True,resize_keyboard=True)
     lod = update.message.text
     if(lod == local_or_delivery_list[0]):
-        await save_order_to_db(context,1)
+        await save_order_to_db(context,5)
         return await local(update,context)
     else:
         with Session(kratom_engine) as session:
@@ -628,23 +632,29 @@ async def local_or_delivery(update: Update,context: ContextTypes.DEFAULT_TYPE):
             return await personal_info_name(update,context)
 
 async def save_order_to_db(context,user_id):
-    with Session(kratom_engine) as session:
-        order = Orders(user_id=user_id)
-        session.add(order)
-        session.commit()
-        session.refresh(order)
-        for x in context.user_data["order"]:
-            x.order_id = order.id
-            session.add(x)
+    if len(context.user_data["order"]) > 0:
+        with Session(kratom_engine) as session:
+            order = Orders(user_id=user_id)
+            session.add(order)
             session.commit()
-            for y in x.costorderelement:
-                session.add(y)
+            session.refresh(order)
+            for x in context.user_data["order"]:
+                x.order_id = order.id
+                session.add(x)
                 session.commit()
+                for y in x.costorderelement:
+                    session.add(y)
+                    session.commit()
 
 async def ask_update_personal(update: Update,context: ContextTypes.DEFAULT_TYPE):
+    with Session(kratom_engine) as session:
+        user_id = session.query(User.id).where(User.userid.in_([str(update.message.from_user.id)])).first()[0]
+    await save_order_to_db(context,user_id)
+
     if update.message.text == "Так":
         await update.message.reply_text("Щиро дякуємо за замовлення !",
             reply_markup=start_reply_markup)
+        await reset(update,context)
         return CHECK
     else:
         return await personal_info_name(update,context) 
