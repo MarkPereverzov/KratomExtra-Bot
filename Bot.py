@@ -144,7 +144,7 @@ async def catalog(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["current_variety"] = 1
 
     await context.bot.send_photo(chat_id=update.effective_chat.id,
-        photo=open(f"images/catalog.png", 'rb'),
+        photo=open(f"images/logo.png", 'rb'),
         caption="Вітаємо вас в *KRATOM EXTRA!*\n\nОзнайомтеся з нашим асортиментом: розсипний, капсули, конфети або випробуйте наш пробний набір. Обирайте те, що вам до вподоби, і насолоджуйтеся унікальним досвідом від *KRATOM EXTRA*.",
         parse_mode= 'Markdown',
         reply_markup=InlineKeyboardMarkup(keyboard)
@@ -475,7 +475,7 @@ async def update_edit_button(update: Update,context: ContextTypes.DEFAULT_TYPE):
         if x.costelement.id == context.user_data["current_costelement_id"]:
             kel.append([
                 InlineKeyboardButton("-1",callback_data=f"CHANGE_EDIT_COUNT-1CHANGE_EDIT_COUNT{x.costelement.id}"),
-                InlineKeyboardButton(f"✏️ {x.count} Редагувати",callback_data=f"CHANGE_EDIT_COUNTРедагувати"),
+                InlineKeyboardButton(f"✏️ {x.count}",callback_data=f"CHANGE_EDIT_COUNTРедагувати"),
                 InlineKeyboardButton("+1",callback_data=f"CHANGE_EDIT_COUNT+1CHANGE_EDIT_COUNT{x.costelement.id}"),
                 ])
         else:
@@ -609,8 +609,9 @@ async def frequently_asked_questions(update: Update, context: ContextTypes.DEFAU
     return CHECK
     
 async def one_more_ask(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=update.effective_chat.id,text="📦 Оберіть зручний для вас вид доставки\n\n🚶 Самовивіз\nВи маєте можливість особисто забрати замовлення у зручний для Вас час у проміжок часу (11:00 - 18:00).\n\n🚚 Доставка поштою\nВаше замовлення буде надіслано протягом робочого дня за тарифами Нової Пошти.",
-        reply_markup=ReplyKeyboardMarkup([local_or_delivery_list],one_time_keyboard=True,input_field_placeholder="",resize_keyboard=True)
+    await context.bot.send_message(chat_id=update.effective_chat.id,text="📦 *Оберіть зручний для вас вид доставки:*\n\n🚶 *Самовивіз*\nВи маєте можливість особисто забрати замовлення у зручний для Вас час у проміжок часу (11:00 - 18:00).\n\n🚚 *Доставка поштою*\nВаше замовлення буде надіслано протягом робочого дня за тарифами Нової Пошти.",
+        reply_markup=ReplyKeyboardMarkup([local_or_delivery_list],one_time_keyboard=True,input_field_placeholder="",resize_keyboard=True),
+        parse_mode="Markdown"
     )
     await context.bot.deleteMessage(message_id=update.effective_message.id,chat_id=update.effective_chat.id)
     return LOCALORDELIVERY
