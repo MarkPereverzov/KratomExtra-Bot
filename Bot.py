@@ -619,7 +619,9 @@ async def local_or_delivery(update: Update,context: ContextTypes.DEFAULT_TYPE):
     reply_markup = ReplyKeyboardMarkup([["Так","Ні"]],one_time_keyboard=True,resize_keyboard=True)
     lod = update.message.text
     if(lod == local_or_delivery_list[0]):
+        await send_order_to_chat(update,context,True)
         await save_order_to_db(context,1)
+        await reset(update,context)
         return await local(update,context)
     else:
         with Session(kratom_engine) as session:
@@ -648,12 +650,15 @@ async def save_order_to_db(context,user_id):
 
 async def ask_update_personal(update: Update,context: ContextTypes.DEFAULT_TYPE):
     with Session(kratom_engine) as session:
-        user_id = session.query(User.id).where(User.userid.in_([str(update.message.from_user.id)])).first()[0]
-    await save_order_to_db(context,user_id)
-
+        user = session.query(User).where(User.userid.in_([str(update.message.from_user.id)])).first()
+        context.user_data["name"] = user.name
+        context.user_data["address"] = user.adress
+        context.user_data["phone"] = user.phone
     if update.message.text == "Так":
         await update.message.reply_text("Щиро дякуємо за замовлення !",
             reply_markup=start_reply_markup)
+        await send_order_to_chat(update,context)
+        await save_order_to_db(context,user.id)
         await reset(update,context)
         return CHECK
     else:
@@ -661,7 +666,7 @@ async def ask_update_personal(update: Update,context: ContextTypes.DEFAULT_TYPE)
 
 async def local(update: Update,context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        contact_info,
+        contact_info+"\nЩиро дякуємо за замовлення !",
         reply_markup=start_reply_markup
     )
     return CHECK
@@ -705,9 +710,24 @@ async def is_personal_info_correct(update: Update, context: ContextTypes.DEFAULT
         context.user_data["ordersid"] = 0
         await update.message.reply_text("Щиро дякуємо за замовлення !",
             reply_markup=start_reply_markup)
+        await send_order_to_chat(update,context)
+        await save_order_to_db(context,user.id)
+        await reset(update,context)
         return CHECK
     else:
         return await personal_info_name(update,context) 
+
+async def send_order_to_chat(update: Update,context: ContextTypes.DEFAULT_TYPE, sam=False):
+    if not sam:
+        user = User(name=context.user_data["name"],phone=context.user_data["phone"],adress=context.user_data["address"])
+    outstr = "*Замовлення: *\n"
+    for x in context.user_data["order"]:
+        outstr += f"{x}"
+
+    if sam:
+        await context.bot.send_message(chat_id='-1002132689235',text=f"{outstr}\n{'Самовивіз'}",parse_mode='Markdown')
+    else:
+        await context.bot.send_message(chat_id='-1002132689235',text=f"{outstr}\n{user}",parse_mode='Markdown')
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["ordersid"] = 0
