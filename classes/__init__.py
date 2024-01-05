@@ -17,15 +17,13 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True,autoincrement=True)
     userid: Mapped[str] = mapped_column(String(30))
     name: Mapped[str] = mapped_column(String(30),nullable=True)
-    surname: Mapped[str] = mapped_column(String(30),nullable=True)
     phone: Mapped[str] = mapped_column(String(30),nullable=True)
-    city: Mapped[str] = mapped_column(String(30),nullable=True)
-    post_type: Mapped[str] = mapped_column(String(30),nullable=True)
-    post_number: Mapped[int] = mapped_column(nullable=True)
+    adress: Mapped[str] = mapped_column(String(72),nullable=True)
     orders: Mapped[List["Orders"]] = relationship(back_populates="user")
 
     def __repr__(self) -> str:
-        return f"Ім'я: {self.name}\nПрізвище: {self.surname}\n"+f"Телефон: {self.phone}\nМісто: {self.city}\n"+f"Почтомат/відділення: {self.post_type}\n"+f"Номер почтомату/відділення: {self.post_number}\n"
+        #return f"Ім'я: {self.name}\nПрізвище: {self.surname}\n"+f"Телефон: {self.phone}\nМісто: {self.city}\n"+f"Почтомат/відділення: {self.post_type}\n"+f"Номер почтомату/відділення: {self.post_number}\n"
+        return f"Ім'я та Прізвище: {self.name}\n"+f"Адреса: {self.adress}\n"+f"Телефон: {self.phone}\n"
 
 class Orders(Base):
     __tablename__ = "Orders"
