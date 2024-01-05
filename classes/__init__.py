@@ -37,7 +37,7 @@ class Orders(Base):
     orderelements: Mapped[List["OrderElements"]] = relationship(back_populates="orders")
 
     def __repr__(self) -> str:
-        dt = datetime.fromtimestamp(self.time)
+        dt = datetime.fromtimestamp(int(self.time))
         #return f"**Час замовлення:** {dt.date().year}\-{dt.date().month}\-{dt.date().day} {dt.time().hour}:{dt.time().minute}:{dt.time().second}"
         return f"*Час замовлення:* {dt.date()} {dt.time()}"
 
@@ -86,18 +86,39 @@ class OrderElements(Base):
     __tablename__ = "OrderElements"
 
     id: Mapped[int] = mapped_column(primary_key=True,autoincrement=True)
-    costelement_id: Mapped[int] = mapped_column(ForeignKey(CostElement.id))
-    costelement: Mapped["CostElement"] =  relationship()
+    #costelement_id: Mapped[int] = mapped_column(ForeignKey(CostElement.id))
+    #costelement: Mapped["CostElement"] =  relationship()
     type: Mapped[str] = mapped_column(String(30))
     kratom_id: Mapped[int] = mapped_column(ForeignKey(Kratom.id))
     kratom: Mapped["Kratom"] =  relationship()
     order_id: Mapped[int] = mapped_column(ForeignKey("Orders.id"))
     orders: Mapped["Orders"] = relationship(back_populates="orderelements")
-    count: Mapped[int] = mapped_column()
+    #count: Mapped[int] = mapped_column()
+
+    costorderelement: Mapped[List["CostOrderElement"]] = relationship(back_populates="orderelement")
     
     def __repr__(self) -> str:
-        return f"{self.count}"
-    #    return f"*Тип упаковки:* {self.type}\n*Сорт:* {self.tea}\n*Вага упаковки:* {self.weight}\n*Кількість упаковок:* {self.amount}\n*Номер замовлення:* {self.order_id}"
+        #return f"{self.count}"
+        outstr = ""
+        name_variety_str = f"*{self.type} {self.kratom.variety}*\n"
+        outstr += f"\n{'-'*int(len(name_variety_str)*1.5+0.45)}\n"
+        outstr += name_variety_str
+        for orderelement in self.costorderelement:
+            tmpsum = int(orderelement.count)*int(orderelement.costelement.cost)
+            outstr += f"{orderelement.costelement.count} {orderelement.costelement.title}: {orderelement.count} x {orderelement.costelement.cost}₴ = {tmpsum}₴\n"
+
+        outstr += f"{'-'*int(len(name_variety_str)*1.5+0.45)}\n"
+        return f"{outstr}"
+
+class CostOrderElement(Base):
+    __tablename__ = "CostOrderElements"
+
+    id: Mapped[int] = mapped_column(primary_key=True,autoincrement=True)
+    costelement_id: Mapped[int] = mapped_column(ForeignKey(CostElement.id))
+    costelement: Mapped["CostElement"] =  relationship()
+    orderelement_id: Mapped[int] = mapped_column(ForeignKey(OrderElements.id))
+    orderelement: Mapped["OrderElements"] =  relationship(back_populates="costorderelement")
+    count: Mapped[int] = mapped_column(nullable=True)
     
 
     

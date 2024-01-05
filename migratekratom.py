@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
-from classes import Kratom,Grade,CostElement,TypeCost,User,Orders,OrderElements
+from classes import Kratom,Grade,CostElement,TypeCost,User,Orders,OrderElements,CostOrderElement
 
 engine = create_engine("sqlite:///D:\\KratomUkraine-Bot\\kratom.db", echo=True)
 
@@ -12,6 +12,7 @@ Kratom.metadata.create_all(engine)
 Grade.metadata.create_all(engine)
 TypeCost.metadata.create_all(engine)
 CostElement.metadata.create_all(engine)
+CostOrderElement.metadata.create_all(engine)
 
 while True:
     ch = input("Enter Table: ")
