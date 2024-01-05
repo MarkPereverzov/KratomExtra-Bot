@@ -45,7 +45,7 @@ def gen_regex(list):
     st += ")$"
     return st
 
-LOCALORDELIVERY,ORDER_CORRECT,TEA,HELP,MYORDER,CHECK,TYPE,ORDER,VARIETY, GRAMMS, COUNT,PACKAGE, ASSORTMENT,PERSONAL_INFO,PERSONAL_SURNAME,PERSONAL_PHONE,PERSONAL_CITY,PERSONAL_POST_TYPE,PERSONAL_POST_TYPE_CHOOSE,PERSONAL_INFO_CORRECT,PERSONAL_POST_NUMBER,ASK_UPDATE_PERSONAL,ONE_MORE = range(23)
+LOCALORDELIVERY,ORDER_CORRECT,TEA,HELP,MYORDER,CHECK,TYPE,ORDER,VARIETY, GRAMMS, COUNT,PACKAGE, ASSORTMENT,PERSONAL_INFO,PERSONAL_NAME,PERSONAL_PHONE,PERSONAL_ADDRESS,PERSONAL_INFO_CORRECT,ASK_UPDATE_PERSONAL,ONE_MORE = range(20)
 
 CATALOG_TYPE, CHOOSE_KRATOM, CHOOSE_GRADE, CHOOSE_COST, CHANGE_COUNT, SHOPING_CARD, CHOOSE_EDIT_KRATOM = range(7)
 GRADE_COUNT = 0
@@ -619,7 +619,7 @@ async def local_or_delivery(update: Update,context: ContextTypes.DEFAULT_TYPE):
     reply_markup = ReplyKeyboardMarkup([["Так","Ні"]],one_time_keyboard=True,resize_keyboard=True)
     lod = update.message.text
     if(lod == local_or_delivery_list[0]):
-        await save_order_to_db(context,5)
+        await save_order_to_db(context,1)
         return await local(update,context)
     else:
         with Session(kratom_engine) as session:
@@ -629,7 +629,7 @@ async def local_or_delivery(update: Update,context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Інформація актуальна ?", reply_markup=reply_markup)
             return ASK_UPDATE_PERSONAL
         else:
-            return await personal_info_name(update,context)
+            return await personal_info(update,context)
 
 async def save_order_to_db(context,user_id):
     if len(context.user_data["order"]) > 0:
@@ -657,7 +657,7 @@ async def ask_update_personal(update: Update,context: ContextTypes.DEFAULT_TYPE)
         await reset(update,context)
         return CHECK
     else:
-        return await personal_info_name(update,context) 
+        return await personal_info(update,context) 
 
 async def local(update: Update,context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -666,47 +666,28 @@ async def local(update: Update,context: ContextTypes.DEFAULT_TYPE):
     )
     return CHECK
 
-async def personal_info_name(update: Update,context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Вкажіть ваше ім'я", reply_markup=ReplyKeyboardRemove())
-    return PERSONAL_SURNAME
+async def personal_info(update: Update,context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Введіть ПІБ", reply_markup=ReplyKeyboardRemove())
+    return PERSONAL_NAME
 
-async def personal_info_surname(update: Update,context: ContextTypes.DEFAULT_TYPE):
+async def personal_info_name(update: Update,context: ContextTypes.DEFAULT_TYPE):
     name = update.message.text
     context.user_data["name"] = name
-    await update.message.reply_text("Вкажіть ваше прізвище")
+    await update.message.reply_text("Введіть адресу")
+    return PERSONAL_ADDRESS
+
+async def personal_info_address(update: Update,context: ContextTypes.DEFAULT_TYPE):
+    address = update.message.text
+    context.user_data["address"] = address
+    await update.message.reply_text("Введіть номер телефону")
     return PERSONAL_PHONE
 
 async def personal_info_phone(update: Update,context: ContextTypes.DEFAULT_TYPE):
-    surname = update.message.text
-    context.user_data["surname"] = surname
-    await update.message.reply_text("Вкажіть ваш номер телефону")
-    return PERSONAL_CITY
-
-async def personal_info_city(update: Update,context: ContextTypes.DEFAULT_TYPE):
+    reply_markup = ReplyKeyboardMarkup([["Так","Ні"]],one_time_keyboard=True,resize_keyboard=True)
     phone = update.message.text
     context.user_data["phone"] = phone
-    await update.message.reply_text("Вкажіть ваше місто")
-    return PERSONAL_POST_TYPE
-
-async def personal_info_post_type(update: Update,context: ContextTypes.DEFAULT_TYPE):
-    reply_markup = ReplyKeyboardMarkup([post_type_list],resize_keyboard=True)
-    city = update.message.text
-    context.user_data["city"] = city
-    await update.message.reply_text("Оберіть Почтомат або Відділення",reply_markup=reply_markup)
-    return PERSONAL_POST_TYPE_CHOOSE
-    
-async def personal_info_post_type_choose(update: Update,context: ContextTypes.DEFAULT_TYPE):
-    post_type = update.message.text
-    context.user_data["post_type"] = post_type
-    await update.message.reply_text(f'Введіть номер {"почтомату" if post_type == post_type_list[0] else "відділення"} (Тільки число)',reply_markup=ReplyKeyboardRemove())
-    return PERSONAL_POST_NUMBER
-
-async def personal_info_post_number(update: Update,context: ContextTypes.DEFAULT_TYPE):
-    reply_markup = ReplyKeyboardMarkup([["Так","Ні"]],one_time_keyboard=True,resize_keyboard=True)
-    post_number = update.message.text
     userid = update.message.from_user.id
-    context.user_data["post_number"] = post_number
-    user = User(name=context.user_data["name"],surname=context.user_data["surname"],phone=context.user_data["phone"],city=context.user_data["city"],post_type=context.user_data["post_type"],post_number=post_number)
+    user = User(name=context.user_data["name"],phone=context.user_data["phone"],adress=context.user_data["address"])
     await update.message.reply_text(
         f"{user}\nВсе вказано вірно ?",
         reply_markup=reply_markup,
@@ -718,11 +699,8 @@ async def is_personal_info_correct(update: Update, context: ContextTypes.DEFAULT
         with Session(kratom_engine) as session:
             user = session.query(User).where(User.userid.in_([str(update.message.from_user.id)])).first()
             user.name = context.user_data["name"]
-            user.surname = context.user_data["surname"]
             user.phone = context.user_data["phone"]
-            user.city = context.user_data["city"]
-            user.post_type = context.user_data["post_type"]
-            user.post_number = context.user_data["post_number"]
+            user.adress = context.user_data["address"]
             session.commit()
         context.user_data["ordersid"] = 0
         await update.message.reply_text("Щиро дякуємо за замовлення !",
@@ -757,13 +735,13 @@ app.add_handler(ConversationHandler(
             # PACKAGE: [MessageHandler(filters.Regex("^[0-9]+$"),package_select)],
             # ORDER_CORRECT:[MessageHandler(filters.Regex(gen_regex(["Так","Ні"])),is_oreder_correct)],
             LOCALORDELIVERY:[MessageHandler(filters.Regex(gen_regex(local_or_delivery_list)),local_or_delivery)],
-            PERSONAL_INFO:[MessageHandler(filters.TEXT,personal_info_name)],
-            PERSONAL_SURNAME:[MessageHandler(filters.TEXT,personal_info_surname)],
-            PERSONAL_PHONE:[MessageHandler(filters.TEXT,personal_info_phone)],            
-            PERSONAL_CITY:[MessageHandler(filters.TEXT,personal_info_city)],
-            PERSONAL_POST_TYPE:[MessageHandler(filters.TEXT,personal_info_post_type)],
-            PERSONAL_POST_TYPE_CHOOSE:[MessageHandler(filters.Regex(gen_regex(post_type_list)),personal_info_post_type_choose)],
-            PERSONAL_POST_NUMBER:[MessageHandler(filters.Regex("^[0-9]+$"),personal_info_post_number)],
+            PERSONAL_INFO:[MessageHandler(filters.TEXT,personal_info)],
+            PERSONAL_NAME:[MessageHandler(filters.TEXT,personal_info_name)],
+            PERSONAL_PHONE:[
+                #MessageHandler(filters.Regex("[+0-9]{9,13}"),personal_info_phone),
+                MessageHandler(filters.TEXT,personal_info_phone),
+                ],            
+            PERSONAL_ADDRESS:[MessageHandler(filters.TEXT,personal_info_address)],
             PERSONAL_INFO_CORRECT:[MessageHandler(filters.Regex(gen_regex(["Так","Ні"])),is_personal_info_correct)],
             ASK_UPDATE_PERSONAL:[MessageHandler(filters.Regex(gen_regex(["Так","Ні"])),ask_update_personal)],
             ONE_MORE:[MessageHandler(filters.Regex(gen_regex(["Так","Ні"])),one_more_ask)],
