@@ -61,7 +61,7 @@ async def reset(update,context):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global GRADE_COUNT
-    await context.bot.send_message(update.effective_chat.id, 'Вас вітає *Kratom Ukraine* телеграм бот👋\nТут ви можете оформити онлайн замовлення або дізнатися детальніше про наш чай🌱',parse_mode= 'Markdown', reply_markup=start_reply_markup)
+    await context.bot.send_message(update.effective_chat.id, 'Вітаємо вас в *KRATOM EXTRA* телеграм бот👋\nТут ви можете оформити онлайн замовлення або дізнатися детальніше про наш чай🌱',parse_mode= 'Markdown', reply_markup=start_reply_markup)
     await reset(update,context)
 
     with Session(kratom_engine) as session:
@@ -145,7 +145,7 @@ async def catalog(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await context.bot.send_photo(chat_id=update.effective_chat.id,
         photo=open(f"images/logo.png", 'rb'),
-        caption="Вітаємо вас в *KRATOM EXTRA!*\n\nОзнайомтеся з нашим асортиментом: розсипний, капсули, конфети або випробуйте наш пробний набір. Обирайте те, що вам до вподоби, і насолоджуйтеся унікальним досвідом від *KRATOM EXTRA*.",
+        caption="Ознайомтеся з нашим асортиментом: розсипний, капсули, конфети або випробуйте наш пробний набір. \n\nОбирайте те, що вам до вподоби, і насолоджуйтеся унікальним досвідом від *KRATOM EXTRA*.",
         parse_mode= 'Markdown',
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
@@ -400,14 +400,14 @@ async def generateorderlist(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     for order in grouped_order:
         name_variety_str = f"*{order.type} {order.kratom.variety}*\n"
-        outstr += f"\n{'-'*int(len(name_variety_str)*1.5+0.45)}\n"
+        outstr += f"\n{'-'*35}\n"
         outstr += name_variety_str
         for orderelement in order.costorderelement:
             tmpsum = int(orderelement.count)*int(orderelement.costelement.cost)
             summ += tmpsum
             outstr += f"{orderelement.costelement.count} {orderelement.costelement.title}: {orderelement.count} x {orderelement.costelement.cost}₴ = {tmpsum}₴\n"
 
-        outstr += f"{'-'*int(len(name_variety_str)*1.5+0.45)}\n"
+        outstr += f"{'-'*35}\n"
 
     context.user_data["current_sum"] = f"{summ}₴"
     outstr += f"\n*Загалом*: {summ}₴"
@@ -667,25 +667,25 @@ async def ask_update_personal(update: Update,context: ContextTypes.DEFAULT_TYPE)
 
 async def local(update: Update,context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        contact_info+"\nЩиро дякуємо за замовлення !",
+        contact_info+"\nЩиро дякуємо за замовлення!",
         reply_markup=start_reply_markup
     )
     return CHECK
 
 async def personal_info(update: Update,context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Введіть ПІБ", reply_markup=ReplyKeyboardRemove())
+    await update.message.reply_text("*Введіть ПІБ* \nприклад (Васильчук Василь Васильович)", reply_markup=ReplyKeyboardRemove(), parse_mode="Markdown")
     return PERSONAL_NAME
 
 async def personal_info_name(update: Update,context: ContextTypes.DEFAULT_TYPE):
     name = update.message.text
     context.user_data["name"] = name
-    await update.message.reply_text("Введіть адресу")
+    await update.message.reply_text("*Введіть адресу* \nприклад (м. Запоріжжя, відділення 11)", parse_mode="Markdown")
     return PERSONAL_ADDRESS
 
 async def personal_info_address(update: Update,context: ContextTypes.DEFAULT_TYPE):
     address = update.message.text
     context.user_data["address"] = address
-    await update.message.reply_text("Введіть номер телефону")
+    await update.message.reply_text("*Введіть номер телефону* \nприклад (+38 073 00 000 00)", parse_mode="Markdown")
     return PERSONAL_PHONE
 
 async def personal_info_phone(update: Update,context: ContextTypes.DEFAULT_TYPE):
@@ -695,7 +695,7 @@ async def personal_info_phone(update: Update,context: ContextTypes.DEFAULT_TYPE)
     userid = update.message.from_user.id
     user = User(name=context.user_data["name"],phone=context.user_data["phone"],adress=context.user_data["address"])
     await update.message.reply_text(
-        f"{user}\nВсе вказано вірно ?",
+        f"{user}\nВсе вказано вірно?",
         reply_markup=reply_markup,
     )
     return PERSONAL_INFO_CORRECT
@@ -721,14 +721,15 @@ async def is_personal_info_correct(update: Update, context: ContextTypes.DEFAULT
 async def send_order_to_chat(update: Update,context: ContextTypes.DEFAULT_TYPE, sam=False):
     if not sam:
         user = User(name=context.user_data["name"],phone=context.user_data["phone"],adress=context.user_data["address"])
-    outstr = "*Замовлення: *\n"
+        linked_user = f'[username](tg://user?id={update.effective_user.id})'
+        outstr = "*Замовлення: *\n"
     for x in context.user_data["order"]:
         outstr += f"{x}"
 
     if sam:
-        await context.bot.send_message(chat_id='-1002132689235',text=f"{outstr}\n{'Самовивіз'}",parse_mode='Markdown')
+        await context.bot.send_message(chat_id='-1002132689235',text=f"{outstr}\n{'Самовивіз'}\n{linked_user}",parse_mode='Markdown')
     else:
-        await context.bot.send_message(chat_id='-1002132689235',text=f"{outstr}\n{user}",parse_mode='Markdown')
+        await context.bot.send_message(chat_id='-1002132689235',text=f"{outstr}\n{user}\n{linked_user}",parse_mode='Markdown')
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["ordersid"] = 0

@@ -23,7 +23,7 @@ class User(Base):
 
     def __repr__(self) -> str:
         #return f"Ім'я: {self.name}\nПрізвище: {self.surname}\n"+f"Телефон: {self.phone}\nМісто: {self.city}\n"+f"Почтомат/відділення: {self.post_type}\n"+f"Номер почтомату/відділення: {self.post_number}\n"
-        return f"Ім'я та Прізвище: {self.name}\n"+f"Адреса: {self.adress}\n"+f"Телефон: {self.phone}\n"
+        return f"ПІБ: {self.name}\n"+f"Адреса: {self.adress}\n"+f"Телефон: {self.phone}\n"
 
 class Orders(Base):
     __tablename__ = "Orders"
@@ -99,13 +99,14 @@ class OrderElements(Base):
         #return f"{self.count}"
         outstr = ""
         name_variety_str = f"*{self.type} {self.kratom.variety}*\n"
-        outstr += f"\n{'-'*int(len(name_variety_str)*1.5+0.45)}\n"
+        outstr += f"\n{'-'*35}\n"
         outstr += name_variety_str
         for orderelement in self.costorderelement:
             tmpsum = int(orderelement.count)*int(orderelement.costelement.cost)
             outstr += f"{orderelement.costelement.count} {orderelement.costelement.title}: {orderelement.count} x {orderelement.costelement.cost}₴ = {tmpsum}₴\n"
+        outstr += f"\n{'-'*35}\n"
 
-        outstr += f"{'-'*int(len(name_variety_str)*1.5+0.45)}\n"
+        #outstr += f"{'-'*int(len(name_variety_str)*1.5+0.45)}\n"
         return f"{outstr}"
 
 class CostOrderElement(Base):
