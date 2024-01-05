@@ -17,15 +17,13 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True,autoincrement=True)
     userid: Mapped[str] = mapped_column(String(30))
     name: Mapped[str] = mapped_column(String(30),nullable=True)
-    surname: Mapped[str] = mapped_column(String(30),nullable=True)
     phone: Mapped[str] = mapped_column(String(30),nullable=True)
-    city: Mapped[str] = mapped_column(String(30),nullable=True)
-    post_type: Mapped[str] = mapped_column(String(30),nullable=True)
-    post_number: Mapped[int] = mapped_column(nullable=True)
+    adress: Mapped[str] = mapped_column(String(72),nullable=True)
     orders: Mapped[List["Orders"]] = relationship(back_populates="user")
 
     def __repr__(self) -> str:
-        return f"Ім'я: {self.name}\nПрізвище: {self.surname}\n"+f"Телефон: {self.phone}\nМісто: {self.city}\n"+f"Почтомат/відділення: {self.post_type}\n"+f"Номер почтомату/відділення: {self.post_number}\n"
+        #return f"Ім'я: {self.name}\nПрізвище: {self.surname}\n"+f"Телефон: {self.phone}\nМісто: {self.city}\n"+f"Почтомат/відділення: {self.post_type}\n"+f"Номер почтомату/відділення: {self.post_number}\n"
+        return f"Ім'я та Прізвище: {self.name}\n"+f"Адреса: {self.adress}\n"+f"Телефон: {self.phone}\n"
 
 class Orders(Base):
     __tablename__ = "Orders"
@@ -37,20 +35,88 @@ class Orders(Base):
     orderelements: Mapped[List["OrderElements"]] = relationship(back_populates="orders")
 
     def __repr__(self) -> str:
-        dt = datetime.fromtimestamp(self.time)
+        dt = datetime.fromtimestamp(int(self.time))
         #return f"**Час замовлення:** {dt.date().year}\-{dt.date().month}\-{dt.date().day} {dt.time().hour}:{dt.time().minute}:{dt.time().second}"
         return f"*Час замовлення:* {dt.date()} {dt.time()}"
+
+class Grade(Base):
+    __tablename__ = "kratom_grade"
+
+    id: Mapped[int] = mapped_column(primary_key=True,autoincrement=True)
+    grade: Mapped[str] = mapped_column(String(30))
+    img: Mapped[str] = mapped_column(String(30))
+    description: Mapped[str] = mapped_column(String(1024))
+    typecosts: Mapped[List["TypeCost"]] = relationship(back_populates="grade")
+
+class CostElement(Base):
+    __tablename__ = "kratom_costelement"
+
+    id: Mapped[int] = mapped_column(primary_key=True,autoincrement=True)
+    title: Mapped[str] = mapped_column(String(30))
+    count: Mapped[str] = mapped_column(String(30))
+    count_repeat: Mapped[int] = mapped_column(default=0)
+    cost: Mapped[int] = mapped_column()
+
+class CostElementModel(CostElement):
+    kratom_id: Mapped[int] = 0
+
+class TypeCost(Base):
+    __tablename__ = "kratom_typecost"
+
+    id: Mapped[int] = mapped_column(primary_key=True,autoincrement=True)
+    type: Mapped[str] = mapped_column(String(30))
+    costelement_id: Mapped[int] = mapped_column(ForeignKey(CostElement.id))
+    costelement: Mapped["CostElement"] =  relationship()
+    grade_id: Mapped[int] = mapped_column(ForeignKey(Grade.id))
+    grade: Mapped["Grade"] = relationship(back_populates="typecosts")
+
+class Kratom(Base):
+    __tablename__ = "kratom_variety"
+
+    id: Mapped[int] = mapped_column(primary_key=True,autoincrement=True)
+    variety: Mapped[str] = mapped_column(String(30))
+    img: Mapped[str] = mapped_column(String(30))
+    description: Mapped[str] = mapped_column(String(1024))
+    grade_id: Mapped[int] = mapped_column(ForeignKey(Grade.id))
+    grade: Mapped["Grade"] = relationship()
 
 class OrderElements(Base):
     __tablename__ = "OrderElements"
 
     id: Mapped[int] = mapped_column(primary_key=True,autoincrement=True)
-    tea: Mapped[str] = mapped_column(String(30))
-    weight: Mapped[int] = mapped_column()
-    amount: Mapped[int] = mapped_column()
+    #costelement_id: Mapped[int] = mapped_column(ForeignKey(CostElement.id))
+    #costelement: Mapped["CostElement"] =  relationship()
     type: Mapped[str] = mapped_column(String(30))
+    kratom_id: Mapped[int] = mapped_column(ForeignKey(Kratom.id))
+    kratom: Mapped["Kratom"] =  relationship()
     order_id: Mapped[int] = mapped_column(ForeignKey("Orders.id"))
     orders: Mapped["Orders"] = relationship(back_populates="orderelements")
+    #count: Mapped[int] = mapped_column()
 
+    costorderelement: Mapped[List["CostOrderElement"]] = relationship(back_populates="orderelement")
+    
     def __repr__(self) -> str:
-        return f"*Тип упаковки:* {self.type}\n*Сорт:* {self.tea}\n*Вага упаковки:* {self.weight}\n*Кількість упаковок:* {self.amount}\n*Номер замовлення:* {self.order_id}"
+        #return f"{self.count}"
+        outstr = ""
+        name_variety_str = f"*{self.type} {self.kratom.variety}*\n"
+        outstr += f"\n{'-'*int(len(name_variety_str)*1.5+0.45)}\n"
+        outstr += name_variety_str
+        for orderelement in self.costorderelement:
+            tmpsum = int(orderelement.count)*int(orderelement.costelement.cost)
+            outstr += f"{orderelement.costelement.count} {orderelement.costelement.title}: {orderelement.count} x {orderelement.costelement.cost}₴ = {tmpsum}₴\n"
+
+        outstr += f"{'-'*int(len(name_variety_str)*1.5+0.45)}\n"
+        return f"{outstr}"
+
+class CostOrderElement(Base):
+    __tablename__ = "CostOrderElements"
+
+    id: Mapped[int] = mapped_column(primary_key=True,autoincrement=True)
+    costelement_id: Mapped[int] = mapped_column(ForeignKey(CostElement.id))
+    costelement: Mapped["CostElement"] =  relationship()
+    orderelement_id: Mapped[int] = mapped_column(ForeignKey(OrderElements.id))
+    orderelement: Mapped["OrderElements"] =  relationship(back_populates="costorderelement")
+    count: Mapped[int] = mapped_column(nullable=True)
+    
+
+    
